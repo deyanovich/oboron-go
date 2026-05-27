@@ -8,17 +8,15 @@ import (
 	"strings"
 
 	"github.com/urfave/cli/v2"
+	"oboron.org/go/internal/version"
 	"oboron.org/go/oboron"
 )
-
-// Version is set via ldflags during build.
-var Version = "dev"
 
 func main() {
 	app := &cli.App{
 		Name:                   "ob",
 		Usage:                  "Encrypt and encode values with oboron secure schemes",
-		Version:                Version,
+		Version:                version.Version,
 		UseShortOptionHandling: true,
 		Commands: []*cli.Command{
 			encCmd(),

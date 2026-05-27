@@ -14,12 +14,12 @@ import (
 	"strings"
 
 	"github.com/urfave/cli/v2"
+	"oboron.org/go/internal/version"
 	"oboron.org/go/obcrypt"
 )
 
 // Build metadata, set via -ldflags.
 var (
-	Version   = "dev"
 	Commit    = "unknown"
 	BuildTime = "unknown"
 )
@@ -29,7 +29,7 @@ func main() {
 	app := &cli.App{
 		Name:    "obcrypt",
 		Usage:   "bytes-in/bytes-out symmetric encryption (oboron a-tier + u-tier)",
-		Version: fmt.Sprintf("%s (commit %s, built %s)", Version, Commit, BuildTime),
+		Version: fmt.Sprintf("%s (commit %s, built %s)", version.Version, Commit, BuildTime),
 		Commands: []*cli.Command{
 			encryptCmd(),
 			decryptCmd(),

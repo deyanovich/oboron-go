@@ -3,27 +3,18 @@ set -e
 
 echo 'Building oboron CLIs...' >&2
 
-# Get commit hash (needed for version logic)
+# The version is the in-code const (internal/version/version.go); the
+# build only injects commit + build time as metadata.
 COMMIT=$(git rev-parse --short HEAD 2> /dev/null || echo "unknown")
-
-# Check if there are uncommitted changes
-if [[ -n $(git status --porcelain) ]]; then
-  # Uncommitted changes detected, use "dev" as version
-  V="dev"
-else
-  # Clean status, get version from git tag or use commit hash
-  V=$(git describe --tags --exact-match --match "v*.*" 2> /dev/null || echo "$COMMIT")
-fi
 
 # Get build time
 BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
-echo "Version:    $V" >&2
 echo "Commit:     $COMMIT" >&2
 echo "Build time: $BUILD_TIME" >&2
 echo "" >&2
 
-LDFLAGS="-X 'main.Version=$V' -X 'main.Commit=$COMMIT' -X 'main.BuildTime=$BUILD_TIME'"
+LDFLAGS="-X 'main.Commit=$COMMIT' -X 'main.BuildTime=$BUILD_TIME'"
 
 # Build ob (main CLI - secure schemes)
 go install -ldflags "$LDFLAGS" ./cmd/ob
