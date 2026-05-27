@@ -1,3 +1,6 @@
+// Command obz is the CLI for oboron's z-tier obfuscation schemes
+// (legacy and zrbcx): reversible obfuscation of a string, not
+// authenticated encryption. See https://oboron.org/.
 package main
 
 import (

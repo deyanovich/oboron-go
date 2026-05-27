@@ -1,3 +1,6 @@
+// Command ob is the CLI for oboron's secure schemes (a-tier + u-tier):
+// it encrypts a UTF-8 string into compact, URL-safe obtext and decrypts
+// it back. See https://oboron.org/.
 package main
 
 import (
