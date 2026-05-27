@@ -1,0 +1,10 @@
+vendor
+*.sw[o-z]
+*.out
+out
+# Built CLI binaries, root-anchored so the patterns don't match the cmd/ob and
+# cmd/obz source directories (a bare "ob"/"obz" would). The obcrypt binary
+# needs no entry: it can't sit at the repo root next to the obcrypt/ package
+# dir, so `go build` writes it elsewhere (-o) or `go install` to GOPATH/bin.
+/ob
+/obz

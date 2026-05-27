@@ -1,0 +1,30 @@
+# CI for oboron-go. Runs on the authoritative GitLab project;
+# public mirrors are inert (no CI runs there).
+image: golang:1.24
+
+# Run on pushes to master and on merge requests (mirrors the
+# GitHub workflow's push:[master] + pull_request triggers, and
+# avoids duplicate branch+MR pipelines).
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
+
+stages:
+  - check
+  - test
+
+fmt-vet:
+  stage: check
+  script:
+    - test -z "$(gofmt -l .)" || { echo "gofmt needed on:"; gofmt -l .; exit 1; }
+    - go vet ./...
+
+test:
+  stage: test
+  script:
+    - go test -v ./obcrypt/...
+    - go test -v ./oboron/...
+    - go test -v ./cmd/ob/...
+    - go test -v ./cmd/obz/...
+    - go test -v ./cmd/obcrypt/...
