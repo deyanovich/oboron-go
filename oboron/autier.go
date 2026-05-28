@@ -6,8 +6,8 @@ import "oboron.org/go/obcrypt"
 // the obcrypt package (bytes-in / bytes-out); here we only wrap it with obtext
 // encoding. encodeAU produces framed bytes via obcrypt then encodes them;
 // decodeAU decodes the text then hands the framed bytes back to obcrypt. The
-// z-tier schemes (zrbcx, legacy) are not crypto and keep their implementations
-// in zrbcx.go / legacy.go.
+// z-tier schemes (zrbcx, legacy) are not crypto and live in the oboron/ztier
+// subpackage.
 
 // encodeAU encrypts s under an obcrypt scheme and encodes the framed payload.
 func (c *codec) encodeAU(s string, scheme obcrypt.Scheme, enc Encoding) (string, error) {
@@ -35,50 +35,41 @@ func (c *codec) decodeAU(s string, scheme obcrypt.Scheme, enc Encoding) (string,
 	return string(pt), nil
 }
 
-// --- per-scheme codec methods (referenced by Oboron/Omnib dispatch and the
-// scheme conformance tests). Each is a thin wrapper over encodeAU/decodeAU. ---
+// obcryptScheme maps an oboron a/u-tier scheme to its obcrypt counterpart.
+// The boolean is false for z-tier or unknown schemes, which obcrypt does not
+// handle.
+func obcryptScheme(scheme Scheme) (obcrypt.Scheme, bool) {
+	switch scheme {
+	case SchemeAasv:
+		return obcrypt.Aasv, true
+	case SchemeApsv:
+		return obcrypt.Apsv, true
+	case SchemeAags:
+		return obcrypt.Aags, true
+	case SchemeApgs:
+		return obcrypt.Apgs, true
+	case SchemeUpbc:
+		return obcrypt.Upbc, true
+	default:
+		return 0, false
+	}
+}
 
-func (c *codec) encodeAasvWith(s string, enc Encoding) (string, error) {
-	return c.encodeAU(s, obcrypt.Aasv, enc)
+// encodeScheme dispatches encoding to the requested a/u-tier scheme. Shared by
+// Ob (fixed format) and Omnib (per-call format).
+func (c *codec) encodeScheme(s string, scheme Scheme, enc Encoding) (string, error) {
+	oc, ok := obcryptScheme(scheme)
+	if !ok {
+		return "", ErrInvalidFormat
+	}
+	return c.encodeAU(s, oc, enc)
 }
-func (c *codec) decodeAasvWith(s string, enc Encoding) (string, error) {
-	return c.decodeAU(s, obcrypt.Aasv, enc)
-}
-func (c *codec) encodeAasv(s string) (string, error) { return c.encodeAasvWith(s, EncodingB32) }
-func (c *codec) decodeAasv(s string) (string, error) { return c.decodeAasvWith(s, EncodingB32) }
 
-func (c *codec) encodeApsvWith(s string, enc Encoding) (string, error) {
-	return c.encodeAU(s, obcrypt.Apsv, enc)
+// decodeScheme dispatches strict decoding to the requested a/u-tier scheme.
+func (c *codec) decodeScheme(s string, scheme Scheme, enc Encoding) (string, error) {
+	oc, ok := obcryptScheme(scheme)
+	if !ok {
+		return "", ErrInvalidFormat
+	}
+	return c.decodeAU(s, oc, enc)
 }
-func (c *codec) decodeApsvWith(s string, enc Encoding) (string, error) {
-	return c.decodeAU(s, obcrypt.Apsv, enc)
-}
-func (c *codec) encodeApsv(s string) (string, error) { return c.encodeApsvWith(s, EncodingB32) }
-func (c *codec) decodeApsv(s string) (string, error) { return c.decodeApsvWith(s, EncodingB32) }
-
-func (c *codec) encodeAagsWith(s string, enc Encoding) (string, error) {
-	return c.encodeAU(s, obcrypt.Aags, enc)
-}
-func (c *codec) decodeAagsWith(s string, enc Encoding) (string, error) {
-	return c.decodeAU(s, obcrypt.Aags, enc)
-}
-func (c *codec) encodeAags(s string) (string, error) { return c.encodeAagsWith(s, EncodingB32) }
-func (c *codec) decodeAags(s string) (string, error) { return c.decodeAagsWith(s, EncodingB32) }
-
-func (c *codec) encodeApgsWith(s string, enc Encoding) (string, error) {
-	return c.encodeAU(s, obcrypt.Apgs, enc)
-}
-func (c *codec) decodeApgsWith(s string, enc Encoding) (string, error) {
-	return c.decodeAU(s, obcrypt.Apgs, enc)
-}
-func (c *codec) encodeApgs(s string) (string, error) { return c.encodeApgsWith(s, EncodingB32) }
-func (c *codec) decodeApgs(s string) (string, error) { return c.decodeApgsWith(s, EncodingB32) }
-
-func (c *codec) encodeUpbcWith(s string, enc Encoding) (string, error) {
-	return c.encodeAU(s, obcrypt.Upbc, enc)
-}
-func (c *codec) decodeUpbcWith(s string, enc Encoding) (string, error) {
-	return c.decodeAU(s, obcrypt.Upbc, enc)
-}
-func (c *codec) encodeUpbc(s string) (string, error) { return c.encodeUpbcWith(s, EncodingB32) }
-func (c *codec) decodeUpbc(s string) (string, error) { return c.decodeUpbcWith(s, EncodingB32) }

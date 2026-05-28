@@ -23,56 +23,51 @@ func (f Format) Encoding() Encoding {
 	return f.encoding
 }
 
-// String returns the format string representation, e.g. "aasv.c32".
-// The encoding suffix is always included so the result round-trips through ParseFormat
-// to an identical Format and matches the canonical "scheme.encoding" form used in
-// test vectors.
+// String returns the format string representation, e.g. "aasv.c32". The legacy
+// scheme is the sole exception: it has a single fixed form with no encoding
+// suffix and renders as just "legacy". Every other format always carries its
+// encoding suffix so the result round-trips through ParseFormat.
 func (f Format) String() string {
-	enc := f.encoding
-	if enc == "" {
-		enc = DefaultEncoding
+	if f.scheme == SchemeLegacy {
+		return string(SchemeLegacy)
 	}
-	return string(f.scheme) + "." + string(enc)
+	return string(f.scheme) + "." + string(f.encoding)
 }
 
-// ParseFormat parses a format string like "aasv.c32" or "legacy".
-// If no encoding suffix is present the scheme's default encoding is used: b32 for
-// the pre-spec legacy scheme (its historical encoding, with no 2-byte marker), and
-// the global DefaultEncoding (c32) for every other scheme.
+// ParseFormat parses a format string like "aasv.c32". Parsing is strict: there
+// is no library-level default encoding (the c32 default is a CLI concept, spec
+// CLI.md §3, not a protocol one — spec SPEC.md defines none). Every scheme must
+// carry an explicit encoding suffix, so "aasv", "zrbcx" and "zrbcx." all error.
+// The lone exception is the pre-spec legacy scheme, whose single fixed form is
+// the bare "legacy" (its historical b32 encoding, no marker, no suffix).
 func ParseFormat(s string) (Format, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
 	if s == "" {
 		return Format{}, ErrInvalidFormat
 	}
 
-	parts := strings.SplitN(s, ".", 2)
+	if !strings.Contains(s, ".") {
+		// Only the legacy scheme has a suffix-free form.
+		if s == string(SchemeLegacy) {
+			return Format{scheme: SchemeLegacy, encoding: EncodingB32}, nil
+		}
+		return Format{}, ErrInvalidFormat
+	}
 
+	parts := strings.SplitN(s, ".", 2)
 	scheme, err := ParseScheme(parts[0])
 	if err != nil {
 		return Format{}, ErrInvalidFormat
 	}
-
-	var enc Encoding
-	if len(parts) == 2 {
-		enc, err = ParseEncoding(parts[1])
-		if err != nil {
-			return Format{}, ErrInvalidFormat
-		}
-	} else {
-		enc = schemeDefaultEncoding(scheme)
-	}
-
-	return Format{scheme: scheme, encoding: enc}, nil
-}
-
-// schemeDefaultEncoding returns the encoding to use when no explicit encoding
-// suffix is given. The legacy scheme is locked to b32 (its only ever encoding);
-// all spec-conformant schemes fall back to DefaultEncoding (c32).
-func schemeDefaultEncoding(scheme Scheme) Encoding {
+	// legacy never takes an encoding suffix; "legacy.b32" is not a valid form.
 	if scheme == SchemeLegacy {
-		return EncodingB32
+		return Format{}, ErrInvalidFormat
 	}
-	return DefaultEncoding
+	enc, err := ParseEncoding(parts[1])
+	if err != nil {
+		return Format{}, ErrInvalidFormat
+	}
+	return Format{scheme: scheme, encoding: enc}, nil
 }
 
 // ParseScheme parses a scheme string (case-insensitive).

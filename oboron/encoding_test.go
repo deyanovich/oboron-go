@@ -81,7 +81,9 @@ func TestEncodingString(t *testing.T) {
 	}
 }
 
-// TestParseFormat verifies format string parsing
+// TestParseFormat verifies strict format-string parsing: there is no
+// library-level default encoding, so every scheme must carry an explicit
+// encoding suffix. The bare "legacy" is the sole suffix-free exception.
 func TestParseFormat(t *testing.T) {
 	tests := []struct {
 		input      string
@@ -89,22 +91,22 @@ func TestParseFormat(t *testing.T) {
 		wantEnc    Encoding
 		wantErr    bool
 	}{
-		// Scheme only — spec-conformant schemes default to c32 (CLI.md §3);
-		// legacy keeps its historical b32 encoding.
+		// legacy: the one suffix-free form (its historical b32 encoding).
 		{"legacy", SchemeLegacy, EncodingB32, false},
-		{"zrbcx", SchemeZrbcx, EncodingC32, false},
-		{"aags", SchemeAags, EncodingC32, false},
-		{"aasv", SchemeAasv, EncodingC32, false},
-		{"apgs", SchemeApgs, EncodingC32, false},
-		{"apsv", SchemeApsv, EncodingC32, false},
-		{"upbc", SchemeUpbc, EncodingC32, false},
+
+		// Bare scheme names (no encoding) now error — no default applies.
+		{"zrbcx", Scheme(""), Encoding(""), true},
+		{"aags", Scheme(""), Encoding(""), true},
+		{"aasv", Scheme(""), Encoding(""), true},
+		{"apgs", Scheme(""), Encoding(""), true},
+		{"apsv", Scheme(""), Encoding(""), true},
+		{"upbc", Scheme(""), Encoding(""), true},
 
 		// Scheme + encoding
 		{"aasv.c32", SchemeAasv, EncodingC32, false},
 		{"aasv.b32", SchemeAasv, EncodingB32, false},
 		{"aasv.b64", SchemeAasv, EncodingB64, false},
 		{"aasv.hex", SchemeAasv, EncodingHex, false},
-		{"legacy.c32", SchemeLegacy, EncodingC32, false},
 		{"zrbcx.hex", SchemeZrbcx, EncodingHex, false},
 		{"apgs.b64", SchemeApgs, EncodingB64, false},
 
@@ -117,6 +119,9 @@ func TestParseFormat(t *testing.T) {
 		{"unknown", Scheme(""), Encoding(""), true},
 		{"aasv.unknown", Scheme(""), Encoding(""), true},
 		{"unknown.b32", Scheme(""), Encoding(""), true},
+		{"legacy.b32", Scheme(""), Encoding(""), true}, // legacy takes no suffix
+		{"legacy.c32", Scheme(""), Encoding(""), true},
+		{"zrbcx.", Scheme(""), Encoding(""), true},
 	}
 
 	for _, tt := range tests {
@@ -138,8 +143,9 @@ func TestParseFormat(t *testing.T) {
 	}
 }
 
-// TestFormatString verifies Format.String() output. The encoding suffix is
-// always emitted so the result round-trips through ParseFormat.
+// TestFormatString verifies Format.String() output. Non-legacy formats emit
+// the encoding suffix so they round-trip through ParseFormat; legacy is
+// suffix-free and renders as just "legacy".
 func TestFormatString(t *testing.T) {
 	tests := []struct {
 		format Format
@@ -149,8 +155,7 @@ func TestFormatString(t *testing.T) {
 		{NewFormat(SchemeAasv, EncodingC32), "aasv.c32"},
 		{NewFormat(SchemeAasv, EncodingB64), "aasv.b64"},
 		{NewFormat(SchemeAasv, EncodingHex), "aasv.hex"},
-		{NewFormat(SchemeLegacy, EncodingB32), "legacy.b32"},
-		{NewFormat(SchemeLegacy, EncodingC32), "legacy.c32"},
+		{NewFormat(SchemeLegacy, EncodingB32), "legacy"},
 		{NewFormat(SchemeUpbc, EncodingHex), "upbc.hex"},
 	}
 
@@ -218,28 +223,6 @@ func TestEncodingBackendsRoundtrip(t *testing.T) {
 					t.Errorf("Roundtrip mismatch: got %x, want %x", decoded, data)
 				}
 			})
-		}
-	}
-}
-
-// TestCrockfordNormalize verifies Crockford normalization
-func TestCrockfordNormalize(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"abc123", "ABC123"},
-		{"Io1l", "1011"},     // I→1, o→0, l→1
-		{"OoIiLl", "001111"}, // O→0, o→0, I→1, i→1, L→1, l→1
-		{"HELLO", "HE110"},   // L→1, O→0 (Crockford mapping)
-		{"hello", "HE110"},   // same in lowercase
-		{"0123456789", "0123456789"},
-	}
-
-	for _, tt := range tests {
-		got := crockfordNormalize(tt.input)
-		if got != tt.want {
-			t.Errorf("crockfordNormalize(%q) = %q, want %q", tt.input, got, tt.want)
 		}
 	}
 }

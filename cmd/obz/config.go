@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"oboron.org/go/oboron"
+	"oboron.org/go/oboron/ztier"
 )
 
 // Config represents the main configuration file for the obz CLI.
@@ -143,12 +143,12 @@ func saveProfile(name string, p *SecretProfile) error {
 	return os.WriteFile(path, data, 0600)
 }
 
-func generateSecret() (*oboron.Secret, error) {
-	raw := make([]byte, oboron.SecretSize)
+func generateSecret() (*ztier.Secret, error) {
+	raw := make([]byte, ztier.SecretSize)
 	if _, err := rand.Read(raw); err != nil {
 		return nil, err
 	}
-	return oboron.NewSecret(raw)
+	return ztier.NewSecret(raw)
 }
 
 func listProfiles() error {
@@ -190,7 +190,7 @@ func listProfiles() error {
 	return nil
 }
 
-func createProfile(name string, secret *oboron.Secret) error {
+func createProfile(name string, secret *ztier.Secret) error {
 	p := &SecretProfile{Secret: secret.Hex()}
 	if err := saveProfile(name, p); err != nil {
 		return err

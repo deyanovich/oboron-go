@@ -370,12 +370,12 @@ func encAction(c *cli.Context) error {
 	}
 	enc := resolveEncoding(c, cfg)
 
-	ob, err := oboron.NewOmnibFromMasterKey(mk)
+	ob, err := oboron.NewOmnib(mk.Hex())
 	if err != nil {
 		return err
 	}
 
-	result, err := ob.EncodeWithFormat(text, fmt.Sprintf("%s.%s", scheme, enc))
+	result, err := ob.Enc(text, fmt.Sprintf("%s.%s", scheme, enc))
 	if err != nil {
 		return err
 	}
@@ -398,7 +398,7 @@ func decAction(c *cli.Context) error {
 		return err
 	}
 
-	ob, err := oboron.NewOmnibFromMasterKey(mk)
+	ob, err := oboron.NewOmnib(mk.Hex())
 	if err != nil {
 		return err
 	}
@@ -412,7 +412,7 @@ func decAction(c *cli.Context) error {
 			return err
 		}
 		enc := resolveEncoding(c, cfg)
-		result, err := ob.DecodeWithFormat(text, fmt.Sprintf("%s.%s", scheme, enc))
+		result, err := ob.Dec(text, fmt.Sprintf("%s.%s", scheme, enc))
 		if err != nil {
 			return err
 		}
@@ -420,18 +420,8 @@ func decAction(c *cli.Context) error {
 		return nil
 	}
 
-	// Autodetect encoding too if no encoding flag
-	if c.Bool("c32") || c.Bool("b32") || c.Bool("b64") || c.Bool("hex") {
-		enc := resolveEncoding(c, cfg)
-		result, err := ob.DecodeWithEncoding(text, enc)
-		if err != nil {
-			return err
-		}
-		fmt.Println(result)
-		return nil
-	}
-
-	result, err := ob.DecodeAny(text)
+	// No scheme specified: autodetect the scheme (and encoding) from the obtext.
+	result, err := ob.Autodec(text)
 	if err != nil {
 		return err
 	}

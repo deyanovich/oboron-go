@@ -192,37 +192,36 @@ func TestHardcodedMasterKey(t *testing.T) {
 }
 
 func TestMasterKeySecureSchemes(t *testing.T) {
-	mk := HardcodedMasterKey()
+	key := HardcodedMasterKey().Hex()
 
 	tests := []struct {
-		name   string
-		create func(*MasterKey) (*Oboron, error)
+		format string
 		scheme Scheme
 	}{
-		{"aags", NewAagsFromMasterKey, SchemeAags},
-		{"aasv", NewAasvFromMasterKey, SchemeAasv},
-		{"apgs", NewApgsFromMasterKey, SchemeApgs},
-		{"apsv", NewApsvFromMasterKey, SchemeApsv},
-		{"upbc", NewUpbcFromMasterKey, SchemeUpbc},
+		{"aags.b32", SchemeAags},
+		{"aasv.b32", SchemeAasv},
+		{"apgs.b32", SchemeApgs},
+		{"apsv.b32", SchemeApsv},
+		{"upbc.b32", SchemeUpbc},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ob, err := tt.create(mk)
+		t.Run(string(tt.scheme), func(t *testing.T) {
+			ob, err := New(tt.format, key)
 			if err != nil {
-				t.Fatalf("Constructor failed: %v", err)
+				t.Fatalf("New(%q) failed: %v", tt.format, err)
 			}
 			if ob.Scheme() != tt.scheme {
 				t.Errorf("Scheme() = %q, want %q", ob.Scheme(), tt.scheme)
 			}
 
-			encoded, err := ob.Encode("test")
+			encoded, err := ob.Enc("test")
 			if err != nil {
-				t.Fatalf("Encode failed: %v", err)
+				t.Fatalf("Enc failed: %v", err)
 			}
-			decoded, err := ob.Decode(encoded)
+			decoded, err := ob.Dec(encoded)
 			if err != nil {
-				t.Fatalf("Decode failed: %v", err)
+				t.Fatalf("Dec failed: %v", err)
 			}
 			if decoded != "test" {
 				t.Errorf("Roundtrip failed: got %q, want %q", decoded, "test")
@@ -231,40 +230,40 @@ func TestMasterKeySecureSchemes(t *testing.T) {
 	}
 }
 
-func TestMasterKeyZeroizedRejectsConstruction(t *testing.T) {
-	mk := HardcodedMasterKey()
-	mk.Zeroize()
-
-	_, err := NewAagsFromMasterKey(mk)
-	if err != ErrMasterKeyZeroized {
-		t.Errorf("Expected ErrMasterKeyZeroized, got %v", err)
-	}
-
-	_, err = NewOmnibFromMasterKey(mk)
-	if err != ErrMasterKeyZeroized {
-		t.Errorf("Expected ErrMasterKeyZeroized from NewOmnibFromMasterKey, got %v", err)
-	}
-}
-
-func TestMasterKeyCompatibleWithRawKey(t *testing.T) {
-	// Verify MasterKey-based constructors produce the same results as raw key constructors
-	mk := HardcodedMasterKey()
-
-	fromRawKey, err := NewAags(HardcodedKey)
+// TestMasterKeyConstructionParity verifies the hex-string and raw-bytes
+// constructors (spec §4.2) produce identical output.
+func TestMasterKeyConstructionParity(t *testing.T) {
+	fromStr, err := New("aags.b32", HardcodedMasterKey().Hex())
 	if err != nil {
-		t.Fatalf("NewAags failed: %v", err)
+		t.Fatalf("New failed: %v", err)
 	}
-
-	fromMasterKey, err := NewAagsFromMasterKey(mk)
+	fromBytes, err := NewObFromBytes("aags.b32", HardcodedKey)
 	if err != nil {
-		t.Fatalf("NewAagsFromMasterKey failed: %v", err)
+		t.Fatalf("NewObFromBytes failed: %v", err)
 	}
 
 	input := "hello world"
-	rawEncoded, _ := fromRawKey.Encode(input)
-	mkEncoded, _ := fromMasterKey.Encode(input)
+	strEncoded, _ := fromStr.Enc(input)
+	bytesEncoded, _ := fromBytes.Enc(input)
+	if strEncoded != bytesEncoded {
+		t.Errorf("hex-key encode %q != raw-bytes encode %q", strEncoded, bytesEncoded)
+	}
+}
 
-	if rawEncoded != mkEncoded {
-		t.Errorf("MasterKey encode %q != raw key encode %q", mkEncoded, rawEncoded)
+func TestTierConstants(t *testing.T) {
+	if TierA != 1 {
+		t.Errorf("TierA = %d, want 1", TierA)
+	}
+	if TierU != 2 {
+		t.Errorf("TierU = %d, want 2", TierU)
+	}
+	if TierZ != 6 {
+		t.Errorf("TierZ = %d, want 6", TierZ)
+	}
+}
+
+func TestMasterKeySizeConstant(t *testing.T) {
+	if MasterKeySize != 64 {
+		t.Errorf("MasterKeySize = %d, want 64", MasterKeySize)
 	}
 }

@@ -59,8 +59,9 @@ go get oboron.org/go
 import "oboron.org/go/oboron"
 
 // Encode using the public (testing) key — INSECURE, testing only.
-encoded, _ := oboron.EncodeAasvKeyless("/warehouse/shelf-A/bin-42")
-original, _ := oboron.DecodeKeyless(encoded)
+ob, _ := oboron.NewAasvC32Keyless()
+encoded, _ := ob.Enc("/warehouse/shelf-A/bin-42")
+original, _ := ob.Dec(encoded)
 ```
 
 ### CLI
@@ -178,28 +179,40 @@ encoding wrapped around them.
 
 ## Library API
 
+The API comes in three shapes, mirroring the Rust and Python
+implementations: fixed types (`AasvC32`, …) bake the encoding into
+the type name; `Ob` carries one runtime-chosen format; `Omnib`
+takes a format per operation.
+
 ```go
-import "oboron.org/go/oboron"
+import (
+	"oboron.org/go/oboron"
+	"oboron.org/go/oboron/ztier"
+)
 
-// Master key for secure schemes (512-bit / 128-char hex).
-mk, _ := oboron.MasterKeyFromHex("your-128-char-hex-key")
-ob, _ := oboron.NewOmnibFromMasterKey(mk)
-encoded, _ := ob.EncodeWithFormat("data", "aasv.b32")
-decoded, _ := ob.DecodeWithFormat(encoded, "aasv.b32")
+// Secure a/u-tier schemes — 512-bit master key (128-char hex).
+key := oboron.GenerateKey()
 
-// Secret for z-tier schemes (256-bit / 64-char hex).
-sec, _ := oboron.SecretFromHex("your-64-char-hex-secret")
-obz, _ := oboron.NewOmnibFromSecret(sec)
-encoded, _ = obz.EncodeWithFormat("data", "zrbcx.b32")
-decoded, _ = obz.DecodeWithFormat(encoded, "zrbcx.b32")
+ob, _ := oboron.NewAasvC32(key)          // fixed type
+encoded, _ := ob.Enc("data")
+decoded, _ := ob.Dec(encoded)
 
-// Autodetect scheme on decode.
-decoded, _ = ob.DecodeAny(encoded)
+// Or oboron.New("aasv.b32", key) for one runtime-chosen format.
+omni, _ := oboron.NewOmnib(key)          // a format per operation
+encoded, _ = omni.Enc("data", "aasv.b32")
+decoded, _ = omni.Autodec(encoded)       // autodetect scheme
+
+// z-tier obfuscation schemes — 256-bit secret (64-char hex).
+secret := oboron.GenerateSecret()
+z, _ := ztier.NewZrbcxC32(secret)
+encoded, _ = z.Enc("data")
+decoded, _ = z.Dec(encoded)
 ```
 
-`MasterKeyFromHex` / `SecretFromHex` take the canonical hex form;
-`MasterKeyFromString` / `SecretFromString` auto-detect hex vs. the
-deprecated base64 form by length.
+The z-tier (zrbcx, legacy) is obfuscation, not encryption; it lives
+in the separate `oboron/ztier` package. `New` / `NewOmnib` take a key
+string, auto-detecting hex vs. the deprecated base64 form by length;
+`NewObFromBytes` accepts raw 64-byte keys.
 
 If you want the cryptographic core without any encoding — raw
 bytes-in / bytes-out — depend on `obcrypt` directly:

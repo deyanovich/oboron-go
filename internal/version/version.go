@@ -5,4 +5,4 @@
 package version
 
 // Version is the module version, kept in sync with the git tag (vX.Y.Z).
-const Version = "v0.1.2"
+const Version = "v0.2.0"

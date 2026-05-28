@@ -20,16 +20,37 @@
 //
 // # Tiers and keys
 //
-// The a-tier (aasv, apsv, aags, apgs) and u-tier (upbc) schemes take a 512-bit
-// MasterKey, which is a type alias for obcrypt.Key. The z-tier (zrbcx, legacy)
-// schemes take a 256-bit Secret. Hex is the canonical text form for both.
+// This package is the a-tier (aasv, apsv, aags, apgs) and u-tier (upbc) API:
+// the secure schemes, keyed by a 512-bit MasterKey (a type alias for
+// obcrypt.Key) supplied as a 128-character hex string. The z-tier obfuscation
+// schemes (zrbcx, legacy) are NOT encryption and live in a separate, isolated
+// subpackage, oboron/ztier, keyed by a 256-bit Secret. Hex is the canonical
+// text form for both.
+//
+// The API has three shapes, mirroring the Rust and Python implementations:
+//
+//   - fixed types (AasvC32, AasvB64, …) — the encoding is baked into the type
+//     name and never optional;
+//   - Ob — one runtime-chosen format per instance;
+//   - Omnib — a format chosen per operation.
 //
 // # Quick start
 //
-//	mk, _ := oboron.MasterKeyFromHex(keyHex)        // 128 hex chars
-//	ob, _ := oboron.NewOmnibFromMasterKey(mk)
-//	obtext, _ := ob.EncodeWithFormat("hello", "aasv.c32")
-//	plain, _ := ob.DecodeWithFormat(obtext, "aasv.c32")
+//	key := oboron.GenerateKey()              // 128-char hex master key
+//
+//	ob, _ := oboron.NewAasvC32(key)          // fixed type
+//	obtext, _ := ob.Enc("hello, world")
+//	plain, _ := ob.Dec(obtext)
+//
+//	ob2, _ := oboron.New("aasv.c32", key)    // runtime format
+//	omni, _ := oboron.NewOmnib(key)          // per-operation format
+//	obtext, _ = omni.Enc("hello, world", "aasv.c32")
+//
+// For the z-tier:
+//
+//	secret := oboron.GenerateSecret()        // 64-char hex secret
+//	z, _ := ztier.NewZrbcxC32(secret)
+//	obtext, _ = z.Enc("hello, world")
 //
 // For the raw cryptographic core without any encoding, depend on obcrypt
 // directly instead.

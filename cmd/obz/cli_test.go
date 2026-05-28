@@ -305,7 +305,7 @@ func TestObzZtierVectorTests(t *testing.T) {
 	binary := obzBinary(t)
 	home := testHomeDir(t)
 
-	vectors := loadVectors(t, "../../oboron/testdata/rs-ztier-test-vectors.jsonl")
+	vectors := loadVectors(t, "../../oboron/ztier/testdata/rs-ztier-test-vectors.jsonl")
 	if len(vectors) == 0 {
 		t.Fatal("No test vectors loaded")
 	}
@@ -366,7 +366,7 @@ func TestObzLegacyVectorTests(t *testing.T) {
 	binary := obzBinary(t)
 	home := testHomeDir(t)
 
-	const legacyPath = "../../oboron/testdata/rs-legacy-test-vectors.jsonl"
+	const legacyPath = "../../oboron/ztier/testdata/rs-legacy-test-vectors.jsonl"
 	secret := loadLegacySecret(t, legacyPath)
 	vectors := loadVectors(t, legacyPath)
 	if len(vectors) == 0 {

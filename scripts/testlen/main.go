@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 
 	"oboron.org/go/oboron"
+	"oboron.org/go/oboron/ztier"
 )
 
 const (
@@ -24,6 +25,7 @@ func randomString(length int) string {
 
 func main() {
 	ob, _ := oboron.NewOmnibKeyless()
+	obz, _ := ztier.NewOmnibzKeyless()
 
 	fmt.Println("Input Length | Min Zrbcx Output | Max Zrbcx Output | Zrbcx varies | Min Aasv Output | Max Aasv Output | Aasv varies")
 	fmt.Println("-------------|------------------|------------------|--------------|-----------------|-----------------|------------")
@@ -37,7 +39,7 @@ func main() {
 		for i := 0; i < numSamples; i++ {
 			s := randomString(inputLen)
 
-			encZrbcx, err := ob.EncodeZrbcx(s)
+			encZrbcx, err := obz.Enc(s, "zrbcx.b32")
 			if err != nil {
 				fmt.Printf("Error encoding zrbcx: %v\n", err)
 				continue
@@ -49,7 +51,7 @@ func main() {
 				maxZrbcx = len(encZrbcx)
 			}
 
-			encAasv, err := ob.EncodeAasv(s)
+			encAasv, err := ob.Enc(s, "aasv.b32")
 			if err != nil {
 				fmt.Printf("Error encoding aasv: %v\n", err)
 				continue

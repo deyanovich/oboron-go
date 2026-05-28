@@ -16,9 +16,10 @@ const (
 	EncodingHex Encoding = "hex"
 )
 
-// DefaultEncoding is the default encoding used when none is specified.
-// Matches the CLI specification (CLI.md §3): both `ob` and `obz` default to c32.
-const DefaultEncoding = EncodingC32
+// There is deliberately no library-level default encoding. The c32 default is
+// a CLI concept (spec CLI.md §3), applied in cmd/ob and cmd/obz, not in the
+// format layer — ParseFormat requires an explicit encoding suffix (the bare
+// "legacy" aside). This mirrors Rust, where Format::from_str("aasv") errors.
 
 func (e Encoding) String() string {
 	return string(e)

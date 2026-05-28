@@ -13,6 +13,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"oboron.org/go/internal/version"
 	"oboron.org/go/oboron"
+	"oboron.org/go/oboron/ztier"
 )
 
 func main() {
@@ -98,14 +99,14 @@ func readTextInput(c *cli.Context) (string, error) {
 	return strings.TrimRight(string(data), "\n\r"), nil
 }
 
-func resolveSecret(c *cli.Context) (*oboron.Secret, error) {
+func resolveSecret(c *cli.Context) (*ztier.Secret, error) {
 	if c.Bool("keyless") {
-		return oboron.HardcodedSecret(), nil
+		return ztier.HardcodedSecret(), nil
 	}
 
 	// Secret flag / env var (EnvVars handles $OBORON_SECRET automatically)
 	if secretStr := c.String("secret"); secretStr != "" {
-		return oboron.SecretFromString(secretStr)
+		return ztier.SecretFromString(secretStr)
 	}
 
 	// Profile from flag or config
@@ -122,7 +123,7 @@ func resolveSecret(c *cli.Context) (*oboron.Secret, error) {
 	if err != nil {
 		return nil, err
 	}
-	return oboron.SecretFromString(prof.Secret)
+	return ztier.SecretFromString(prof.Secret)
 }
 
 func resolveScheme(c *cli.Context, cfg *Config) (oboron.Scheme, error) {
@@ -143,6 +144,16 @@ func resolveScheme(c *cli.Context, cfg *Config) (oboron.Scheme, error) {
 		return oboron.Scheme(cfg.Scheme), nil
 	}
 	return oboron.SchemeZrbcx, nil // spec default for obz
+}
+
+// formatString builds the codec format string. The legacy scheme is
+// suffix-free ("legacy"); every other scheme carries its encoding (e.g.
+// "zrbcx.c32").
+func formatString(scheme oboron.Scheme, enc oboron.Encoding) string {
+	if scheme == oboron.SchemeLegacy {
+		return string(scheme)
+	}
+	return string(scheme) + "." + string(enc)
 }
 
 func resolveEncoding(c *cli.Context, cfg *Config) oboron.Encoding {
@@ -358,12 +369,12 @@ func encAction(c *cli.Context) error {
 	}
 	enc := resolveEncoding(c, cfg)
 
-	ob, err := oboron.NewOmnibFromSecret(sec)
+	ob, err := ztier.NewOmnibz(sec.Hex())
 	if err != nil {
 		return err
 	}
 
-	result, err := ob.EncodeWithFormat(text, fmt.Sprintf("%s.%s", scheme, enc))
+	result, err := ob.Enc(text, formatString(scheme, enc))
 	if err != nil {
 		return err
 	}
@@ -386,7 +397,7 @@ func decAction(c *cli.Context) error {
 		return err
 	}
 
-	ob, err := oboron.NewOmnibFromSecret(sec)
+	ob, err := ztier.NewOmnibz(sec.Hex())
 	if err != nil {
 		return err
 	}
@@ -400,7 +411,7 @@ func decAction(c *cli.Context) error {
 			return err
 		}
 		enc := resolveEncoding(c, cfg)
-		result, err := ob.DecodeWithFormat(text, fmt.Sprintf("%s.%s", scheme, enc))
+		result, err := ob.Dec(text, formatString(scheme, enc))
 		if err != nil {
 			return err
 		}
@@ -408,18 +419,8 @@ func decAction(c *cli.Context) error {
 		return nil
 	}
 
-	// Autodetect encoding too if no encoding flag
-	if c.Bool("c32") || c.Bool("b32") || c.Bool("b64") || c.Bool("hex") {
-		enc := resolveEncoding(c, cfg)
-		result, err := ob.DecodeWithEncoding(text, enc)
-		if err != nil {
-			return err
-		}
-		fmt.Println(result)
-		return nil
-	}
-
-	result, err := ob.DecodeAny(text)
+	// No scheme specified: autodetect the scheme (and encoding) from the obtext.
+	result, err := ob.Autodec(text)
 	if err != nil {
 		return err
 	}
@@ -462,7 +463,7 @@ func initAction(c *cli.Context) error {
 
 func configShowAction(c *cli.Context) error {
 	if c.Bool("keyless") {
-		sec := oboron.HardcodedSecret()
+		sec := ztier.HardcodedSecret()
 		fmt.Println("Keyless (public) mode:")
 		fmt.Printf("  Secret: %s\n", sec.Hex())
 		return nil
@@ -585,10 +586,10 @@ func profileCreateAction(c *cli.Context) error {
 	}
 	name := c.Args().First()
 
-	var sec *oboron.Secret
+	var sec *ztier.Secret
 	if secretStr := c.String("secret"); secretStr != "" {
 		var err error
-		sec, err = oboron.SecretFromString(secretStr)
+		sec, err = ztier.SecretFromString(secretStr)
 		if err != nil {
 			return fmt.Errorf("invalid secret: %w", err)
 		}
@@ -623,7 +624,7 @@ func profileSetAction(c *cli.Context) error {
 	}
 	name := c.Args().First()
 
-	sec, err := oboron.SecretFromString(c.String("secret"))
+	sec, err := ztier.SecretFromString(c.String("secret"))
 	if err != nil {
 		return fmt.Errorf("invalid secret: %w", err)
 	}
@@ -655,9 +656,9 @@ func secretAction(c *cli.Context) error {
 		return err
 	}
 
-	var sec *oboron.Secret
+	var sec *ztier.Secret
 	if c.Bool("keyless") {
-		sec = oboron.HardcodedSecret()
+		sec = ztier.HardcodedSecret()
 	} else {
 		cfg, _ := loadConfig()
 		profileName := c.String("profile")
@@ -672,7 +673,7 @@ func secretAction(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		sec, err = oboron.SecretFromString(prof.Secret)
+		sec, err = ztier.SecretFromString(prof.Secret)
 		if err != nil {
 			return fmt.Errorf("invalid secret in profile: %w", err)
 		}
