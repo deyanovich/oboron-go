@@ -64,6 +64,13 @@ encoded, _ := ob.Enc("/warehouse/shelf-A/bin-42")
 original, _ := ob.Dec(encoded)
 ```
 
+Need a real key but don't want to install the CLIs? Generate one
+without cloning or building anything:
+
+```bash
+go run oboron.org/go/cmd/keygen
+```
+
 ### CLI
 
 ```bash
