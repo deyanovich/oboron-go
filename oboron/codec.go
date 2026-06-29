@@ -2,12 +2,12 @@ package oboron
 
 import "oboron.org/go/obcrypt"
 
-// codec carries the key material the a/u-tier oboron layer needs. The a-tier /
-// u-tier crypto is delegated to obKey (an obcrypt.Key, which caches its own
-// ciphers). The z-tier schemes (zrbcx, legacy) are not part of this package —
-// they live in the isolated oboron/ztier subpackage with their own codec.
+// codec carries the key material the authenticated oboron layer needs. The
+// crypto is delegated to obKey (an obcrypt.Key, which caches its own ciphers).
+// The obu schemes (upcbc, zdcbc) are not part of this package — they live in
+// the separate obu package with their own codec.
 type codec struct {
-	obKey *obcrypt.Key // a/u-tier crypto core
+	obKey *obcrypt.Key // authenticated crypto core
 }
 
 // newCodec builds a codec from a 64-byte master key.

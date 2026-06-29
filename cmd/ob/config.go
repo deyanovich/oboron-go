@@ -72,7 +72,7 @@ func loadConfig() (*Config, error) {
 	}
 
 	if cfg.Scheme == "" {
-		cfg.Scheme = "aasv"
+		cfg.Scheme = "dsiv"
 	}
 	if cfg.Profile == "" {
 		cfg.Profile = "default"

@@ -1,62 +1,72 @@
 package oboron
 
-import "oboron.org/go/obcrypt"
+import (
+	"unicode/utf8"
 
-// This file is the a-tier / u-tier bridge: the secure schemes' crypto lives in
-// the obcrypt package (bytes-in / bytes-out); here we only wrap it with obtext
-// encoding. encodeAU produces framed bytes via obcrypt then encodes them;
-// decodeAU decodes the text then hands the framed bytes back to obcrypt. The
-// z-tier schemes (zrbcx, legacy) are not crypto and live in the oboron/ztier
-// subpackage.
+	"oboron.org/go/obcrypt"
+)
 
-// encodeAU encrypts s under an obcrypt scheme and encodes the framed payload.
+// This file is the authenticated-scheme bridge: the secure schemes' crypto
+// lives in the obcrypt package (bytes-in / bytes-out); here we only wrap it
+// with obtext encoding. encodeAU produces ciphertext via obcrypt then encodes
+// it; decodeAU decodes the text then hands the ciphertext back to obcrypt. The
+// obu schemes (upcbc, zdcbc) are handled by the separate obu package.
+
+// encodeAU encrypts s under an obcrypt scheme and encodes the ciphertext.
 func (c *codec) encodeAU(s string, scheme obcrypt.Scheme, enc Encoding) (string, error) {
 	if len(s) == 0 {
 		return "", ErrEmptyString
 	}
-	framed, err := obcrypt.Encrypt([]byte(s), scheme, c.obKey)
+	// oboron operates on UTF-8 text; reject non-UTF-8 input (spec §4.1).
+	if !utf8.ValidString(s) {
+		return "", ErrInvalidUTF8
+	}
+	ct, err := obcrypt.Encrypt([]byte(s), scheme, c.obKey)
 	if err != nil {
 		return "", err
 	}
-	return encodeToText(framed, enc), nil
+	return encodeToText(ct, enc), nil
 }
 
-// decodeAU decodes obtext to framed bytes and decrypts them as a specific
-// obcrypt scheme (strict: the recovered marker must match).
+// decodeAU decodes obtext to ciphertext bytes and decrypts them as a specific
+// obcrypt scheme.
 func (c *codec) decodeAU(s string, scheme obcrypt.Scheme, enc Encoding) (string, error) {
 	buf, err := decodeFromText(s, enc)
 	if err != nil {
 		return "", ErrInvalidEncoding
 	}
-	pt, err := obcrypt.DecryptAs(buf, scheme, c.obKey)
+	pt, err := obcrypt.Decrypt(buf, scheme, c.obKey)
 	if err != nil {
+		return "", ErrDecryptionFailed
+	}
+	// dec MUST validate the decrypted bytes are UTF-8 and never return an
+	// unchecked string (spec §4.1); report via the uniform decrypt error.
+	if !utf8.Valid(pt) {
 		return "", ErrDecryptionFailed
 	}
 	return string(pt), nil
 }
 
-// obcryptScheme maps an oboron a/u-tier scheme to its obcrypt counterpart.
-// The boolean is false for z-tier or unknown schemes, which obcrypt does not
+// obcryptScheme maps an oboron authenticated scheme to its obcrypt counterpart.
+// The boolean is false for obu or unknown schemes, which obcrypt does not
 // handle.
 func obcryptScheme(scheme Scheme) (obcrypt.Scheme, bool) {
 	switch scheme {
-	case SchemeAasv:
-		return obcrypt.Aasv, true
-	case SchemeApsv:
-		return obcrypt.Apsv, true
-	case SchemeAags:
-		return obcrypt.Aags, true
-	case SchemeApgs:
-		return obcrypt.Apgs, true
-	case SchemeUpbc:
-		return obcrypt.Upbc, true
+	case SchemeDsiv:
+		return obcrypt.Dsiv, true
+	case SchemePsiv:
+		return obcrypt.Psiv, true
+	case SchemeDgcmsiv:
+		return obcrypt.Dgcmsiv, true
+	case SchemePgcmsiv:
+		return obcrypt.Pgcmsiv, true
 	default:
 		return 0, false
 	}
 }
 
-// encodeScheme dispatches encoding to the requested a/u-tier scheme. Shared by
-// Ob (fixed format) and Omnib (per-call format).
+// encodeScheme dispatches encoding to the requested authenticated scheme.
+// Shared by Ob (fixed format) and Omnib (per-call format).
 func (c *codec) encodeScheme(s string, scheme Scheme, enc Encoding) (string, error) {
 	oc, ok := obcryptScheme(scheme)
 	if !ok {
@@ -65,7 +75,7 @@ func (c *codec) encodeScheme(s string, scheme Scheme, enc Encoding) (string, err
 	return c.encodeAU(s, oc, enc)
 }
 
-// decodeScheme dispatches strict decoding to the requested a/u-tier scheme.
+// decodeScheme dispatches decoding to the requested authenticated scheme.
 func (c *codec) decodeScheme(s string, scheme Scheme, enc Encoding) (string, error) {
 	oc, ok := obcryptScheme(scheme)
 	if !ok {

@@ -5,7 +5,7 @@ import (
 	"math/rand/v2"
 
 	"oboron.org/go/oboron"
-	"oboron.org/go/oboron/ztier"
+	"oboron.org/go/obu"
 )
 
 const (
@@ -25,48 +25,48 @@ func randomString(length int) string {
 
 func main() {
 	ob, _ := oboron.NewOmnibKeyless()
-	obz, _ := ztier.NewOmnibzKeyless()
+	ou, _ := obu.NewOmnibuKeyless()
 
-	fmt.Println("Input Length | Min Zrbcx Output | Max Zrbcx Output | Zrbcx varies | Min Aasv Output | Max Aasv Output | Aasv varies")
+	fmt.Println("Input Length | Min Zdcbc Output | Max Zdcbc Output | Zdcbc varies | Min Dsiv Output | Max Dsiv Output | Dsiv varies")
 	fmt.Println("-------------|------------------|------------------|--------------|-----------------|-----------------|------------")
 
 	for inputLen := minLength; inputLen <= maxLength; inputLen++ {
-		minZrbcx := int(^uint(0) >> 1)
-		maxZrbcx := 0
-		minAasv := int(^uint(0) >> 1)
-		maxAasv := 0
+		minZdcbc := int(^uint(0) >> 1)
+		maxZdcbc := 0
+		minDsiv := int(^uint(0) >> 1)
+		maxDsiv := 0
 
 		for i := 0; i < numSamples; i++ {
 			s := randomString(inputLen)
 
-			encZrbcx, err := obz.Enc(s, "zrbcx.b32")
+			encZdcbc, err := ou.Enc(s, "zdcbc.b32")
 			if err != nil {
-				fmt.Printf("Error encoding zrbcx: %v\n", err)
+				fmt.Printf("Error encoding zdcbc: %v\n", err)
 				continue
 			}
-			if len(encZrbcx) < minZrbcx {
-				minZrbcx = len(encZrbcx)
+			if len(encZdcbc) < minZdcbc {
+				minZdcbc = len(encZdcbc)
 			}
-			if len(encZrbcx) > maxZrbcx {
-				maxZrbcx = len(encZrbcx)
+			if len(encZdcbc) > maxZdcbc {
+				maxZdcbc = len(encZdcbc)
 			}
 
-			encAasv, err := ob.Enc(s, "aasv.b32")
+			encDsiv, err := ob.Enc(s, "dsiv.b32")
 			if err != nil {
-				fmt.Printf("Error encoding aasv: %v\n", err)
+				fmt.Printf("Error encoding dsiv: %v\n", err)
 				continue
 			}
-			if len(encAasv) < minAasv {
-				minAasv = len(encAasv)
+			if len(encDsiv) < minDsiv {
+				minDsiv = len(encDsiv)
 			}
-			if len(encAasv) > maxAasv {
-				maxAasv = len(encAasv)
+			if len(encDsiv) > maxDsiv {
+				maxDsiv = len(encDsiv)
 			}
 		}
 
-		zrbcxVaries := minZrbcx != maxZrbcx
-		aasvVaries := minAasv != maxAasv
+		zdcbcVaries := minZdcbc != maxZdcbc
+		dsivVaries := minDsiv != maxDsiv
 		fmt.Printf("%12d | %16d | %16d | %t | %15d | %15d | %t\n",
-			inputLen, minZrbcx, maxZrbcx, zrbcxVaries, minAasv, maxAasv, aasvVaries)
+			inputLen, minZdcbc, maxZdcbc, zdcbcVaries, minDsiv, maxDsiv, dsivVaries)
 	}
 }

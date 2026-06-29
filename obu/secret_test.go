@@ -1,4 +1,4 @@
-package ztier
+package obu
 
 import (
 	"encoding/hex"
@@ -74,18 +74,20 @@ func TestSecretFromHexInvalid(t *testing.T) {
 
 func TestSecretFromString(t *testing.T) {
 	want := HardcodedSecret().Bytes()
-	// Hex (64 chars, canonical) and base64url (43 chars, deprecated) both work.
-	for _, in := range []string{HardcodedSecret().Hex(), HardcodedSecret().Base64()} {
-		s, err := SecretFromString(in)
-		if err != nil {
-			t.Fatalf("SecretFromString(%q) failed: %v", in, err)
-		}
-		if hex.EncodeToString(s.Bytes()) != hex.EncodeToString(want) {
-			t.Errorf("SecretFromString(%q) mismatch", in)
-		}
+	// Hex (64 chars) is the only accepted form.
+	s, err := SecretFromString(HardcodedSecret().Hex())
+	if err != nil {
+		t.Fatalf("SecretFromString(hex) failed: %v", err)
+	}
+	if hex.EncodeToString(s.Bytes()) != hex.EncodeToString(want) {
+		t.Errorf("SecretFromString(hex) mismatch")
 	}
 	if _, err := SecretFromString("tooshort"); err == nil {
 		t.Error("SecretFromString(short) expected error")
+	}
+	// 43-char base64url is no longer accepted (hex-only).
+	if _, err := SecretFromString("bhPDH_hhuTE4Kb2udezEI3qF8MaKnK5ItN7aPkjzxXc"); err == nil {
+		t.Error("SecretFromString(base64) expected error (hex-only)")
 	}
 }
 

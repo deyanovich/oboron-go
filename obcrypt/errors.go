@@ -14,8 +14,7 @@ var (
 	// ErrDecryptionFailed is returned when a payload cannot be decrypted under
 	// the given key and scheme (wrong key, tampered ciphertext, or truncation).
 	ErrDecryptionFailed = errors.New("obcrypt: decryption failed")
-	// ErrUnknownScheme is returned when a payload's recovered marker does not
-	// correspond to any a/u-tier scheme. The oboron layer treats this as the
-	// signal to try its z-tier schemes.
-	ErrUnknownScheme = errors.New("obcrypt: unknown scheme marker")
+	// ErrUnknownScheme is returned when an unrecognized Scheme value is passed
+	// to Encrypt or Decrypt.
+	ErrUnknownScheme = errors.New("obcrypt: unknown scheme")
 )

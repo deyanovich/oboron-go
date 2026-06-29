@@ -3,28 +3,23 @@ package obcrypt
 import (
 	crand "crypto/rand"
 
-	"crypto/aes"
 	"crypto/cipher"
-	"encoding/base64"
-	"encoding/binary"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
+	"io"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/agl/gcmsiv"
 	"github.com/miscreant/miscreant.go"
+	"golang.org/x/crypto/hkdf"
 )
 
 // KeySize is the size of an obcrypt key in bytes (512 bits).
 const KeySize = 64
 
-// KeyBase64Len is the number of base64url-nopad characters for a 512-bit key.
-const KeyBase64Len = 86
-
-// Key is a 512-bit (64-byte) master key for the a-tier and u-tier schemes.
+// Key is a 512-bit (64-byte) master key for the authenticated core schemes.
 // Its canonical text form is hex (128 lowercase characters); see Hex. Key
 // caches the per-scheme ciphers it derives, so reuse a single Key across many
 // Encrypt/Decrypt calls rather than reconstructing one each time.
@@ -35,26 +30,17 @@ type Key struct {
 	key      [KeySize]byte
 	zeroized bool
 
-	// Cached AES-GCM-SIV cipher for aags/apgs (key[32:64]).
+	// Cached AES-GCM-SIV cipher for dgcmsiv/pgcmsiv, keyed by a 32-byte key
+	// derived via HKDF-Expand(master, info="gcmsiv").
 	gcmsiv     cipher.AEAD
 	gcmsivOnce sync.Once
 	gcmsivErr  error
 
-	// Cached AES-CMAC-SIV cipher for aasv/apsv (all 64 bytes). Held as the
+	// Cached AES-CMAC-SIV cipher for dsiv/psiv (all 64 bytes). Held as the
 	// concrete type so callers control the associated-data items passed to S2V.
 	sivCipher     *miscreant.Cipher
 	sivCipherOnce sync.Once
 	sivCipherErr  error
-
-	// Cached AES-256 block cipher for upbc (key[8:40]).
-	block256     cipher.Block
-	block256Once sync.Once
-	block256Err  error
-
-	// Fast (non-cryptographic) random source for probabilistic nonces/IVs.
-	rng     *rand.Rand
-	rngOnce sync.Once
-	rngMu   sync.Mutex
 }
 
 // GenerateKey returns a fresh Key from KeySize bytes of cryptographically
@@ -79,7 +65,8 @@ func NewKey(b []byte) (*Key, error) {
 	return k, nil
 }
 
-// KeyFromHex creates a Key from a 128-character hex string.
+// KeyFromHex creates a Key from a 128-character hex string. Hex is the only
+// accepted key form — there is no base64 key form.
 func KeyFromHex(s string) (*Key, error) {
 	if len(s) != KeySize*2 {
 		return nil, fmt.Errorf("obcrypt: key hex must be %d characters, got %d", KeySize*2, len(s))
@@ -88,20 +75,10 @@ func KeyFromHex(s string) (*Key, error) {
 	if err != nil {
 		return nil, fmt.Errorf("obcrypt: invalid key hex: %w", err)
 	}
-	return NewKey(b)
-}
-
-// KeyFromBase64 creates a Key from an 86-character base64url-nopad string.
-//
-// Deprecated: base64 keys are a legacy format; use KeyFromHex for the canonical
-// representation.
-func KeyFromBase64(s string) (*Key, error) {
-	if len(s) != KeyBase64Len {
-		return nil, fmt.Errorf("obcrypt: key base64url must be %d characters, got %d", KeyBase64Len, len(s))
-	}
-	b, err := base64.RawURLEncoding.DecodeString(s)
-	if err != nil {
-		return nil, fmt.Errorf("obcrypt: invalid key base64url: %w", err)
+	// Canonical key hex is lowercase (spec §3.3). hex.DecodeString accepts
+	// uppercase, so reject any input that is not its own canonical re-encoding.
+	if hex.EncodeToString(b) != s {
+		return nil, fmt.Errorf("obcrypt: key hex must be lowercase")
 	}
 	return NewKey(b)
 }
@@ -113,17 +90,6 @@ func (k *Key) Hex() string {
 		return ""
 	}
 	return hex.EncodeToString(k.key[:])
-}
-
-// Base64 returns the key as an 86-character base64url-nopad string.
-//
-// Deprecated: base64 keys are a legacy format; use Hex for the canonical
-// representation. Returns the empty string if zeroized.
-func (k *Key) Base64() string {
-	if k.zeroized {
-		return ""
-	}
-	return base64.RawURLEncoding.EncodeToString(k.key[:])
 }
 
 // Bytes returns a copy of the key material, or nil if zeroized.
@@ -150,7 +116,7 @@ func (k *Key) IsZeroized() bool {
 	return k.zeroized
 }
 
-// --- cached cipher accessors (a/u-tier primitives) ---
+// --- cached cipher accessors ---
 
 func (k *Key) getSIVCipher() (*miscreant.Cipher, error) {
 	k.sivCipherOnce.Do(func() {
@@ -163,42 +129,36 @@ func (k *Key) getSIVCipher() (*miscreant.Cipher, error) {
 
 func (k *Key) getGCMSIV() (cipher.AEAD, error) {
 	k.gcmsivOnce.Do(func() {
+		// dgcmsiv/pgcmsiv share one 32-byte AES-256-GCM-SIV key derived from
+		// the 64-byte master via HKDF-Expand(info="gcmsiv"). HKDF-Extract is
+		// skipped — the master is already a uniform pseudorandom key.
+		r := hkdf.Expand(sha256.New, k.key[:], []byte("gcmsiv"))
 		key32 := make([]byte, 32)
-		copy(key32, k.key[32:64])
+		if _, err := io.ReadFull(r, key32); err != nil {
+			k.gcmsivErr = err
+			return
+		}
 		k.gcmsiv, k.gcmsivErr = gcmsiv.NewGCMSIV(key32)
 	})
 	return k.gcmsiv, k.gcmsivErr
 }
 
-func (k *Key) getBlock256() (cipher.Block, error) {
-	k.block256Once.Do(func() {
-		k.block256, k.block256Err = aes.NewCipher(k.key[8:40])
-	})
-	return k.block256, k.block256Err
-}
-
-// generateNonce returns a random 12-byte nonce.
-func (k *Key) generateNonce() []byte {
-	k.rngOnce.Do(func() {
-		k.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
-	})
+// generateNonce returns a cryptographically random 12-byte nonce (pgcmsiv).
+// Per spec §5, probabilistic nonces MUST come from a CSPRNG; on failure enc
+// fails rather than synthesizing a nonce.
+func (k *Key) generateNonce() ([]byte, error) {
 	nonce := make([]byte, 12)
-	k.rngMu.Lock()
-	binary.LittleEndian.PutUint64(nonce[0:8], k.rng.Uint64())
-	binary.LittleEndian.PutUint32(nonce[8:12], k.rng.Uint32())
-	k.rngMu.Unlock()
-	return nonce
+	if _, err := crand.Read(nonce); err != nil {
+		return nil, err
+	}
+	return nonce, nil
 }
 
-// generateNonce16 returns a random 16-byte nonce/IV.
-func (k *Key) generateNonce16() []byte {
-	k.rngOnce.Do(func() {
-		k.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
-	})
+// generateNonce16 returns a cryptographically random 16-byte nonce (psiv).
+func (k *Key) generateNonce16() ([]byte, error) {
 	nonce := make([]byte, 16)
-	k.rngMu.Lock()
-	binary.LittleEndian.PutUint64(nonce[0:8], k.rng.Uint64())
-	binary.LittleEndian.PutUint64(nonce[8:16], k.rng.Uint64())
-	k.rngMu.Unlock()
-	return nonce
+	if _, err := crand.Read(nonce); err != nil {
+		return nil, err
+	}
+	return nonce, nil
 }

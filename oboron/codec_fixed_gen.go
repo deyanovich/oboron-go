@@ -2,962 +2,770 @@
 
 package oboron
 
-// AagsC32 is the fixed-format codec for "aags.c32". The encoding is part of the
+// DgcmsivC32 is the fixed-format codec for "dgcmsiv.c32". The encoding is part of the
 // type name and never optional.
-type AagsC32 struct{ ob *Ob }
+type DgcmsivC32 struct{ ob *Ob }
 
-// NewAagsC32 creates a AagsC32 from a key string.
-func NewAagsC32(key string) (*AagsC32, error) {
-	ob, err := New("aags.c32", key)
+// NewDgcmsivC32 creates a DgcmsivC32 from a key string.
+func NewDgcmsivC32(key string) (*DgcmsivC32, error) {
+	ob, err := New("dgcmsiv.c32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AagsC32{ob}, nil
+	return &DgcmsivC32{ob}, nil
 }
 
-// NewAagsC32FromBytes creates a AagsC32 from a raw key byte slice.
-func NewAagsC32FromBytes(key []byte) (*AagsC32, error) {
-	ob, err := NewObFromBytes("aags.c32", key)
+// NewDgcmsivC32FromBytes creates a DgcmsivC32 from a raw key byte slice.
+func NewDgcmsivC32FromBytes(key []byte) (*DgcmsivC32, error) {
+	ob, err := NewObFromBytes("dgcmsiv.c32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AagsC32{ob}, nil
+	return &DgcmsivC32{ob}, nil
 }
 
-// NewAagsC32Keyless creates a AagsC32 with the hardcoded key (testing only — NOT SECURE).
-func NewAagsC32Keyless() (*AagsC32, error) {
-	ob, err := NewObKeyless("aags.c32")
+// NewDgcmsivC32Keyless creates a DgcmsivC32 with the hardcoded key (testing only — NOT SECURE).
+func NewDgcmsivC32Keyless() (*DgcmsivC32, error) {
+	ob, err := NewObKeyless("dgcmsiv.c32")
 	if err != nil {
 		return nil, err
 	}
-	return &AagsC32{ob}, nil
+	return &DgcmsivC32{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *AagsC32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *DgcmsivC32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *AagsC32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *DgcmsivC32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *AagsC32) Format() Format { return c.ob.Format() }
+func (c *DgcmsivC32) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *AagsC32) Scheme() Scheme { return c.ob.Scheme() }
+func (c *DgcmsivC32) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *AagsC32) Encoding() Encoding { return c.ob.Encoding() }
+func (c *DgcmsivC32) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*AagsC32)(nil)
+var _ Codec = (*DgcmsivC32)(nil)
 
-// AagsB32 is the fixed-format codec for "aags.b32". The encoding is part of the
+// DgcmsivB32 is the fixed-format codec for "dgcmsiv.b32". The encoding is part of the
 // type name and never optional.
-type AagsB32 struct{ ob *Ob }
+type DgcmsivB32 struct{ ob *Ob }
 
-// NewAagsB32 creates a AagsB32 from a key string.
-func NewAagsB32(key string) (*AagsB32, error) {
-	ob, err := New("aags.b32", key)
+// NewDgcmsivB32 creates a DgcmsivB32 from a key string.
+func NewDgcmsivB32(key string) (*DgcmsivB32, error) {
+	ob, err := New("dgcmsiv.b32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AagsB32{ob}, nil
+	return &DgcmsivB32{ob}, nil
 }
 
-// NewAagsB32FromBytes creates a AagsB32 from a raw key byte slice.
-func NewAagsB32FromBytes(key []byte) (*AagsB32, error) {
-	ob, err := NewObFromBytes("aags.b32", key)
+// NewDgcmsivB32FromBytes creates a DgcmsivB32 from a raw key byte slice.
+func NewDgcmsivB32FromBytes(key []byte) (*DgcmsivB32, error) {
+	ob, err := NewObFromBytes("dgcmsiv.b32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AagsB32{ob}, nil
+	return &DgcmsivB32{ob}, nil
 }
 
-// NewAagsB32Keyless creates a AagsB32 with the hardcoded key (testing only — NOT SECURE).
-func NewAagsB32Keyless() (*AagsB32, error) {
-	ob, err := NewObKeyless("aags.b32")
+// NewDgcmsivB32Keyless creates a DgcmsivB32 with the hardcoded key (testing only — NOT SECURE).
+func NewDgcmsivB32Keyless() (*DgcmsivB32, error) {
+	ob, err := NewObKeyless("dgcmsiv.b32")
 	if err != nil {
 		return nil, err
 	}
-	return &AagsB32{ob}, nil
+	return &DgcmsivB32{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *AagsB32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *DgcmsivB32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *AagsB32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *DgcmsivB32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *AagsB32) Format() Format { return c.ob.Format() }
+func (c *DgcmsivB32) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *AagsB32) Scheme() Scheme { return c.ob.Scheme() }
+func (c *DgcmsivB32) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *AagsB32) Encoding() Encoding { return c.ob.Encoding() }
+func (c *DgcmsivB32) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*AagsB32)(nil)
+var _ Codec = (*DgcmsivB32)(nil)
 
-// AagsB64 is the fixed-format codec for "aags.b64". The encoding is part of the
+// DgcmsivB64 is the fixed-format codec for "dgcmsiv.b64". The encoding is part of the
 // type name and never optional.
-type AagsB64 struct{ ob *Ob }
+type DgcmsivB64 struct{ ob *Ob }
 
-// NewAagsB64 creates a AagsB64 from a key string.
-func NewAagsB64(key string) (*AagsB64, error) {
-	ob, err := New("aags.b64", key)
+// NewDgcmsivB64 creates a DgcmsivB64 from a key string.
+func NewDgcmsivB64(key string) (*DgcmsivB64, error) {
+	ob, err := New("dgcmsiv.b64", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AagsB64{ob}, nil
+	return &DgcmsivB64{ob}, nil
 }
 
-// NewAagsB64FromBytes creates a AagsB64 from a raw key byte slice.
-func NewAagsB64FromBytes(key []byte) (*AagsB64, error) {
-	ob, err := NewObFromBytes("aags.b64", key)
+// NewDgcmsivB64FromBytes creates a DgcmsivB64 from a raw key byte slice.
+func NewDgcmsivB64FromBytes(key []byte) (*DgcmsivB64, error) {
+	ob, err := NewObFromBytes("dgcmsiv.b64", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AagsB64{ob}, nil
+	return &DgcmsivB64{ob}, nil
 }
 
-// NewAagsB64Keyless creates a AagsB64 with the hardcoded key (testing only — NOT SECURE).
-func NewAagsB64Keyless() (*AagsB64, error) {
-	ob, err := NewObKeyless("aags.b64")
+// NewDgcmsivB64Keyless creates a DgcmsivB64 with the hardcoded key (testing only — NOT SECURE).
+func NewDgcmsivB64Keyless() (*DgcmsivB64, error) {
+	ob, err := NewObKeyless("dgcmsiv.b64")
 	if err != nil {
 		return nil, err
 	}
-	return &AagsB64{ob}, nil
+	return &DgcmsivB64{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *AagsB64) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *DgcmsivB64) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *AagsB64) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *DgcmsivB64) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *AagsB64) Format() Format { return c.ob.Format() }
+func (c *DgcmsivB64) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *AagsB64) Scheme() Scheme { return c.ob.Scheme() }
+func (c *DgcmsivB64) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *AagsB64) Encoding() Encoding { return c.ob.Encoding() }
+func (c *DgcmsivB64) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*AagsB64)(nil)
+var _ Codec = (*DgcmsivB64)(nil)
 
-// AagsHex is the fixed-format codec for "aags.hex". The encoding is part of the
+// DgcmsivHex is the fixed-format codec for "dgcmsiv.hex". The encoding is part of the
 // type name and never optional.
-type AagsHex struct{ ob *Ob }
+type DgcmsivHex struct{ ob *Ob }
 
-// NewAagsHex creates a AagsHex from a key string.
-func NewAagsHex(key string) (*AagsHex, error) {
-	ob, err := New("aags.hex", key)
+// NewDgcmsivHex creates a DgcmsivHex from a key string.
+func NewDgcmsivHex(key string) (*DgcmsivHex, error) {
+	ob, err := New("dgcmsiv.hex", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AagsHex{ob}, nil
+	return &DgcmsivHex{ob}, nil
 }
 
-// NewAagsHexFromBytes creates a AagsHex from a raw key byte slice.
-func NewAagsHexFromBytes(key []byte) (*AagsHex, error) {
-	ob, err := NewObFromBytes("aags.hex", key)
+// NewDgcmsivHexFromBytes creates a DgcmsivHex from a raw key byte slice.
+func NewDgcmsivHexFromBytes(key []byte) (*DgcmsivHex, error) {
+	ob, err := NewObFromBytes("dgcmsiv.hex", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AagsHex{ob}, nil
+	return &DgcmsivHex{ob}, nil
 }
 
-// NewAagsHexKeyless creates a AagsHex with the hardcoded key (testing only — NOT SECURE).
-func NewAagsHexKeyless() (*AagsHex, error) {
-	ob, err := NewObKeyless("aags.hex")
+// NewDgcmsivHexKeyless creates a DgcmsivHex with the hardcoded key (testing only — NOT SECURE).
+func NewDgcmsivHexKeyless() (*DgcmsivHex, error) {
+	ob, err := NewObKeyless("dgcmsiv.hex")
 	if err != nil {
 		return nil, err
 	}
-	return &AagsHex{ob}, nil
+	return &DgcmsivHex{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *AagsHex) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *DgcmsivHex) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *AagsHex) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *DgcmsivHex) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *AagsHex) Format() Format { return c.ob.Format() }
+func (c *DgcmsivHex) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *AagsHex) Scheme() Scheme { return c.ob.Scheme() }
+func (c *DgcmsivHex) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *AagsHex) Encoding() Encoding { return c.ob.Encoding() }
+func (c *DgcmsivHex) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*AagsHex)(nil)
+var _ Codec = (*DgcmsivHex)(nil)
 
-// AasvC32 is the fixed-format codec for "aasv.c32". The encoding is part of the
+// DsivC32 is the fixed-format codec for "dsiv.c32". The encoding is part of the
 // type name and never optional.
-type AasvC32 struct{ ob *Ob }
+type DsivC32 struct{ ob *Ob }
 
-// NewAasvC32 creates a AasvC32 from a key string.
-func NewAasvC32(key string) (*AasvC32, error) {
-	ob, err := New("aasv.c32", key)
+// NewDsivC32 creates a DsivC32 from a key string.
+func NewDsivC32(key string) (*DsivC32, error) {
+	ob, err := New("dsiv.c32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AasvC32{ob}, nil
+	return &DsivC32{ob}, nil
 }
 
-// NewAasvC32FromBytes creates a AasvC32 from a raw key byte slice.
-func NewAasvC32FromBytes(key []byte) (*AasvC32, error) {
-	ob, err := NewObFromBytes("aasv.c32", key)
+// NewDsivC32FromBytes creates a DsivC32 from a raw key byte slice.
+func NewDsivC32FromBytes(key []byte) (*DsivC32, error) {
+	ob, err := NewObFromBytes("dsiv.c32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AasvC32{ob}, nil
+	return &DsivC32{ob}, nil
 }
 
-// NewAasvC32Keyless creates a AasvC32 with the hardcoded key (testing only — NOT SECURE).
-func NewAasvC32Keyless() (*AasvC32, error) {
-	ob, err := NewObKeyless("aasv.c32")
+// NewDsivC32Keyless creates a DsivC32 with the hardcoded key (testing only — NOT SECURE).
+func NewDsivC32Keyless() (*DsivC32, error) {
+	ob, err := NewObKeyless("dsiv.c32")
 	if err != nil {
 		return nil, err
 	}
-	return &AasvC32{ob}, nil
+	return &DsivC32{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *AasvC32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *DsivC32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *AasvC32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *DsivC32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *AasvC32) Format() Format { return c.ob.Format() }
+func (c *DsivC32) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *AasvC32) Scheme() Scheme { return c.ob.Scheme() }
+func (c *DsivC32) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *AasvC32) Encoding() Encoding { return c.ob.Encoding() }
+func (c *DsivC32) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*AasvC32)(nil)
+var _ Codec = (*DsivC32)(nil)
 
-// AasvB32 is the fixed-format codec for "aasv.b32". The encoding is part of the
+// DsivB32 is the fixed-format codec for "dsiv.b32". The encoding is part of the
 // type name and never optional.
-type AasvB32 struct{ ob *Ob }
+type DsivB32 struct{ ob *Ob }
 
-// NewAasvB32 creates a AasvB32 from a key string.
-func NewAasvB32(key string) (*AasvB32, error) {
-	ob, err := New("aasv.b32", key)
+// NewDsivB32 creates a DsivB32 from a key string.
+func NewDsivB32(key string) (*DsivB32, error) {
+	ob, err := New("dsiv.b32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AasvB32{ob}, nil
+	return &DsivB32{ob}, nil
 }
 
-// NewAasvB32FromBytes creates a AasvB32 from a raw key byte slice.
-func NewAasvB32FromBytes(key []byte) (*AasvB32, error) {
-	ob, err := NewObFromBytes("aasv.b32", key)
+// NewDsivB32FromBytes creates a DsivB32 from a raw key byte slice.
+func NewDsivB32FromBytes(key []byte) (*DsivB32, error) {
+	ob, err := NewObFromBytes("dsiv.b32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AasvB32{ob}, nil
+	return &DsivB32{ob}, nil
 }
 
-// NewAasvB32Keyless creates a AasvB32 with the hardcoded key (testing only — NOT SECURE).
-func NewAasvB32Keyless() (*AasvB32, error) {
-	ob, err := NewObKeyless("aasv.b32")
+// NewDsivB32Keyless creates a DsivB32 with the hardcoded key (testing only — NOT SECURE).
+func NewDsivB32Keyless() (*DsivB32, error) {
+	ob, err := NewObKeyless("dsiv.b32")
 	if err != nil {
 		return nil, err
 	}
-	return &AasvB32{ob}, nil
+	return &DsivB32{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *AasvB32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *DsivB32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *AasvB32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *DsivB32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *AasvB32) Format() Format { return c.ob.Format() }
+func (c *DsivB32) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *AasvB32) Scheme() Scheme { return c.ob.Scheme() }
+func (c *DsivB32) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *AasvB32) Encoding() Encoding { return c.ob.Encoding() }
+func (c *DsivB32) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*AasvB32)(nil)
+var _ Codec = (*DsivB32)(nil)
 
-// AasvB64 is the fixed-format codec for "aasv.b64". The encoding is part of the
+// DsivB64 is the fixed-format codec for "dsiv.b64". The encoding is part of the
 // type name and never optional.
-type AasvB64 struct{ ob *Ob }
+type DsivB64 struct{ ob *Ob }
 
-// NewAasvB64 creates a AasvB64 from a key string.
-func NewAasvB64(key string) (*AasvB64, error) {
-	ob, err := New("aasv.b64", key)
+// NewDsivB64 creates a DsivB64 from a key string.
+func NewDsivB64(key string) (*DsivB64, error) {
+	ob, err := New("dsiv.b64", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AasvB64{ob}, nil
+	return &DsivB64{ob}, nil
 }
 
-// NewAasvB64FromBytes creates a AasvB64 from a raw key byte slice.
-func NewAasvB64FromBytes(key []byte) (*AasvB64, error) {
-	ob, err := NewObFromBytes("aasv.b64", key)
+// NewDsivB64FromBytes creates a DsivB64 from a raw key byte slice.
+func NewDsivB64FromBytes(key []byte) (*DsivB64, error) {
+	ob, err := NewObFromBytes("dsiv.b64", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AasvB64{ob}, nil
+	return &DsivB64{ob}, nil
 }
 
-// NewAasvB64Keyless creates a AasvB64 with the hardcoded key (testing only — NOT SECURE).
-func NewAasvB64Keyless() (*AasvB64, error) {
-	ob, err := NewObKeyless("aasv.b64")
+// NewDsivB64Keyless creates a DsivB64 with the hardcoded key (testing only — NOT SECURE).
+func NewDsivB64Keyless() (*DsivB64, error) {
+	ob, err := NewObKeyless("dsiv.b64")
 	if err != nil {
 		return nil, err
 	}
-	return &AasvB64{ob}, nil
+	return &DsivB64{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *AasvB64) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *DsivB64) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *AasvB64) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *DsivB64) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *AasvB64) Format() Format { return c.ob.Format() }
+func (c *DsivB64) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *AasvB64) Scheme() Scheme { return c.ob.Scheme() }
+func (c *DsivB64) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *AasvB64) Encoding() Encoding { return c.ob.Encoding() }
+func (c *DsivB64) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*AasvB64)(nil)
+var _ Codec = (*DsivB64)(nil)
 
-// AasvHex is the fixed-format codec for "aasv.hex". The encoding is part of the
+// DsivHex is the fixed-format codec for "dsiv.hex". The encoding is part of the
 // type name and never optional.
-type AasvHex struct{ ob *Ob }
+type DsivHex struct{ ob *Ob }
 
-// NewAasvHex creates a AasvHex from a key string.
-func NewAasvHex(key string) (*AasvHex, error) {
-	ob, err := New("aasv.hex", key)
+// NewDsivHex creates a DsivHex from a key string.
+func NewDsivHex(key string) (*DsivHex, error) {
+	ob, err := New("dsiv.hex", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AasvHex{ob}, nil
+	return &DsivHex{ob}, nil
 }
 
-// NewAasvHexFromBytes creates a AasvHex from a raw key byte slice.
-func NewAasvHexFromBytes(key []byte) (*AasvHex, error) {
-	ob, err := NewObFromBytes("aasv.hex", key)
+// NewDsivHexFromBytes creates a DsivHex from a raw key byte slice.
+func NewDsivHexFromBytes(key []byte) (*DsivHex, error) {
+	ob, err := NewObFromBytes("dsiv.hex", key)
 	if err != nil {
 		return nil, err
 	}
-	return &AasvHex{ob}, nil
+	return &DsivHex{ob}, nil
 }
 
-// NewAasvHexKeyless creates a AasvHex with the hardcoded key (testing only — NOT SECURE).
-func NewAasvHexKeyless() (*AasvHex, error) {
-	ob, err := NewObKeyless("aasv.hex")
+// NewDsivHexKeyless creates a DsivHex with the hardcoded key (testing only — NOT SECURE).
+func NewDsivHexKeyless() (*DsivHex, error) {
+	ob, err := NewObKeyless("dsiv.hex")
 	if err != nil {
 		return nil, err
 	}
-	return &AasvHex{ob}, nil
+	return &DsivHex{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *AasvHex) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *DsivHex) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *AasvHex) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *DsivHex) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *AasvHex) Format() Format { return c.ob.Format() }
+func (c *DsivHex) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *AasvHex) Scheme() Scheme { return c.ob.Scheme() }
+func (c *DsivHex) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *AasvHex) Encoding() Encoding { return c.ob.Encoding() }
+func (c *DsivHex) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*AasvHex)(nil)
+var _ Codec = (*DsivHex)(nil)
 
-// ApgsC32 is the fixed-format codec for "apgs.c32". The encoding is part of the
+// PgcmsivC32 is the fixed-format codec for "pgcmsiv.c32". The encoding is part of the
 // type name and never optional.
-type ApgsC32 struct{ ob *Ob }
+type PgcmsivC32 struct{ ob *Ob }
 
-// NewApgsC32 creates a ApgsC32 from a key string.
-func NewApgsC32(key string) (*ApgsC32, error) {
-	ob, err := New("apgs.c32", key)
+// NewPgcmsivC32 creates a PgcmsivC32 from a key string.
+func NewPgcmsivC32(key string) (*PgcmsivC32, error) {
+	ob, err := New("pgcmsiv.c32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsC32{ob}, nil
+	return &PgcmsivC32{ob}, nil
 }
 
-// NewApgsC32FromBytes creates a ApgsC32 from a raw key byte slice.
-func NewApgsC32FromBytes(key []byte) (*ApgsC32, error) {
-	ob, err := NewObFromBytes("apgs.c32", key)
+// NewPgcmsivC32FromBytes creates a PgcmsivC32 from a raw key byte slice.
+func NewPgcmsivC32FromBytes(key []byte) (*PgcmsivC32, error) {
+	ob, err := NewObFromBytes("pgcmsiv.c32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsC32{ob}, nil
+	return &PgcmsivC32{ob}, nil
 }
 
-// NewApgsC32Keyless creates a ApgsC32 with the hardcoded key (testing only — NOT SECURE).
-func NewApgsC32Keyless() (*ApgsC32, error) {
-	ob, err := NewObKeyless("apgs.c32")
+// NewPgcmsivC32Keyless creates a PgcmsivC32 with the hardcoded key (testing only — NOT SECURE).
+func NewPgcmsivC32Keyless() (*PgcmsivC32, error) {
+	ob, err := NewObKeyless("pgcmsiv.c32")
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsC32{ob}, nil
+	return &PgcmsivC32{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *ApgsC32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *PgcmsivC32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *ApgsC32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *PgcmsivC32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *ApgsC32) Format() Format { return c.ob.Format() }
+func (c *PgcmsivC32) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *ApgsC32) Scheme() Scheme { return c.ob.Scheme() }
+func (c *PgcmsivC32) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *ApgsC32) Encoding() Encoding { return c.ob.Encoding() }
+func (c *PgcmsivC32) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*ApgsC32)(nil)
+var _ Codec = (*PgcmsivC32)(nil)
 
-// ApgsB32 is the fixed-format codec for "apgs.b32". The encoding is part of the
+// PgcmsivB32 is the fixed-format codec for "pgcmsiv.b32". The encoding is part of the
 // type name and never optional.
-type ApgsB32 struct{ ob *Ob }
+type PgcmsivB32 struct{ ob *Ob }
 
-// NewApgsB32 creates a ApgsB32 from a key string.
-func NewApgsB32(key string) (*ApgsB32, error) {
-	ob, err := New("apgs.b32", key)
+// NewPgcmsivB32 creates a PgcmsivB32 from a key string.
+func NewPgcmsivB32(key string) (*PgcmsivB32, error) {
+	ob, err := New("pgcmsiv.b32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsB32{ob}, nil
+	return &PgcmsivB32{ob}, nil
 }
 
-// NewApgsB32FromBytes creates a ApgsB32 from a raw key byte slice.
-func NewApgsB32FromBytes(key []byte) (*ApgsB32, error) {
-	ob, err := NewObFromBytes("apgs.b32", key)
+// NewPgcmsivB32FromBytes creates a PgcmsivB32 from a raw key byte slice.
+func NewPgcmsivB32FromBytes(key []byte) (*PgcmsivB32, error) {
+	ob, err := NewObFromBytes("pgcmsiv.b32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsB32{ob}, nil
+	return &PgcmsivB32{ob}, nil
 }
 
-// NewApgsB32Keyless creates a ApgsB32 with the hardcoded key (testing only — NOT SECURE).
-func NewApgsB32Keyless() (*ApgsB32, error) {
-	ob, err := NewObKeyless("apgs.b32")
+// NewPgcmsivB32Keyless creates a PgcmsivB32 with the hardcoded key (testing only — NOT SECURE).
+func NewPgcmsivB32Keyless() (*PgcmsivB32, error) {
+	ob, err := NewObKeyless("pgcmsiv.b32")
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsB32{ob}, nil
+	return &PgcmsivB32{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *ApgsB32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *PgcmsivB32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *ApgsB32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *PgcmsivB32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *ApgsB32) Format() Format { return c.ob.Format() }
+func (c *PgcmsivB32) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *ApgsB32) Scheme() Scheme { return c.ob.Scheme() }
+func (c *PgcmsivB32) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *ApgsB32) Encoding() Encoding { return c.ob.Encoding() }
+func (c *PgcmsivB32) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*ApgsB32)(nil)
+var _ Codec = (*PgcmsivB32)(nil)
 
-// ApgsB64 is the fixed-format codec for "apgs.b64". The encoding is part of the
+// PgcmsivB64 is the fixed-format codec for "pgcmsiv.b64". The encoding is part of the
 // type name and never optional.
-type ApgsB64 struct{ ob *Ob }
+type PgcmsivB64 struct{ ob *Ob }
 
-// NewApgsB64 creates a ApgsB64 from a key string.
-func NewApgsB64(key string) (*ApgsB64, error) {
-	ob, err := New("apgs.b64", key)
+// NewPgcmsivB64 creates a PgcmsivB64 from a key string.
+func NewPgcmsivB64(key string) (*PgcmsivB64, error) {
+	ob, err := New("pgcmsiv.b64", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsB64{ob}, nil
+	return &PgcmsivB64{ob}, nil
 }
 
-// NewApgsB64FromBytes creates a ApgsB64 from a raw key byte slice.
-func NewApgsB64FromBytes(key []byte) (*ApgsB64, error) {
-	ob, err := NewObFromBytes("apgs.b64", key)
+// NewPgcmsivB64FromBytes creates a PgcmsivB64 from a raw key byte slice.
+func NewPgcmsivB64FromBytes(key []byte) (*PgcmsivB64, error) {
+	ob, err := NewObFromBytes("pgcmsiv.b64", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsB64{ob}, nil
+	return &PgcmsivB64{ob}, nil
 }
 
-// NewApgsB64Keyless creates a ApgsB64 with the hardcoded key (testing only — NOT SECURE).
-func NewApgsB64Keyless() (*ApgsB64, error) {
-	ob, err := NewObKeyless("apgs.b64")
+// NewPgcmsivB64Keyless creates a PgcmsivB64 with the hardcoded key (testing only — NOT SECURE).
+func NewPgcmsivB64Keyless() (*PgcmsivB64, error) {
+	ob, err := NewObKeyless("pgcmsiv.b64")
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsB64{ob}, nil
+	return &PgcmsivB64{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *ApgsB64) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *PgcmsivB64) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *ApgsB64) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *PgcmsivB64) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *ApgsB64) Format() Format { return c.ob.Format() }
+func (c *PgcmsivB64) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *ApgsB64) Scheme() Scheme { return c.ob.Scheme() }
+func (c *PgcmsivB64) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *ApgsB64) Encoding() Encoding { return c.ob.Encoding() }
+func (c *PgcmsivB64) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*ApgsB64)(nil)
+var _ Codec = (*PgcmsivB64)(nil)
 
-// ApgsHex is the fixed-format codec for "apgs.hex". The encoding is part of the
+// PgcmsivHex is the fixed-format codec for "pgcmsiv.hex". The encoding is part of the
 // type name and never optional.
-type ApgsHex struct{ ob *Ob }
+type PgcmsivHex struct{ ob *Ob }
 
-// NewApgsHex creates a ApgsHex from a key string.
-func NewApgsHex(key string) (*ApgsHex, error) {
-	ob, err := New("apgs.hex", key)
+// NewPgcmsivHex creates a PgcmsivHex from a key string.
+func NewPgcmsivHex(key string) (*PgcmsivHex, error) {
+	ob, err := New("pgcmsiv.hex", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsHex{ob}, nil
+	return &PgcmsivHex{ob}, nil
 }
 
-// NewApgsHexFromBytes creates a ApgsHex from a raw key byte slice.
-func NewApgsHexFromBytes(key []byte) (*ApgsHex, error) {
-	ob, err := NewObFromBytes("apgs.hex", key)
+// NewPgcmsivHexFromBytes creates a PgcmsivHex from a raw key byte slice.
+func NewPgcmsivHexFromBytes(key []byte) (*PgcmsivHex, error) {
+	ob, err := NewObFromBytes("pgcmsiv.hex", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsHex{ob}, nil
+	return &PgcmsivHex{ob}, nil
 }
 
-// NewApgsHexKeyless creates a ApgsHex with the hardcoded key (testing only — NOT SECURE).
-func NewApgsHexKeyless() (*ApgsHex, error) {
-	ob, err := NewObKeyless("apgs.hex")
+// NewPgcmsivHexKeyless creates a PgcmsivHex with the hardcoded key (testing only — NOT SECURE).
+func NewPgcmsivHexKeyless() (*PgcmsivHex, error) {
+	ob, err := NewObKeyless("pgcmsiv.hex")
 	if err != nil {
 		return nil, err
 	}
-	return &ApgsHex{ob}, nil
+	return &PgcmsivHex{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *ApgsHex) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *PgcmsivHex) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *ApgsHex) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *PgcmsivHex) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *ApgsHex) Format() Format { return c.ob.Format() }
+func (c *PgcmsivHex) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *ApgsHex) Scheme() Scheme { return c.ob.Scheme() }
+func (c *PgcmsivHex) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *ApgsHex) Encoding() Encoding { return c.ob.Encoding() }
+func (c *PgcmsivHex) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*ApgsHex)(nil)
+var _ Codec = (*PgcmsivHex)(nil)
 
-// ApsvC32 is the fixed-format codec for "apsv.c32". The encoding is part of the
+// PsivC32 is the fixed-format codec for "psiv.c32". The encoding is part of the
 // type name and never optional.
-type ApsvC32 struct{ ob *Ob }
+type PsivC32 struct{ ob *Ob }
 
-// NewApsvC32 creates a ApsvC32 from a key string.
-func NewApsvC32(key string) (*ApsvC32, error) {
-	ob, err := New("apsv.c32", key)
+// NewPsivC32 creates a PsivC32 from a key string.
+func NewPsivC32(key string) (*PsivC32, error) {
+	ob, err := New("psiv.c32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvC32{ob}, nil
+	return &PsivC32{ob}, nil
 }
 
-// NewApsvC32FromBytes creates a ApsvC32 from a raw key byte slice.
-func NewApsvC32FromBytes(key []byte) (*ApsvC32, error) {
-	ob, err := NewObFromBytes("apsv.c32", key)
+// NewPsivC32FromBytes creates a PsivC32 from a raw key byte slice.
+func NewPsivC32FromBytes(key []byte) (*PsivC32, error) {
+	ob, err := NewObFromBytes("psiv.c32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvC32{ob}, nil
+	return &PsivC32{ob}, nil
 }
 
-// NewApsvC32Keyless creates a ApsvC32 with the hardcoded key (testing only — NOT SECURE).
-func NewApsvC32Keyless() (*ApsvC32, error) {
-	ob, err := NewObKeyless("apsv.c32")
+// NewPsivC32Keyless creates a PsivC32 with the hardcoded key (testing only — NOT SECURE).
+func NewPsivC32Keyless() (*PsivC32, error) {
+	ob, err := NewObKeyless("psiv.c32")
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvC32{ob}, nil
+	return &PsivC32{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *ApsvC32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *PsivC32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *ApsvC32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *PsivC32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *ApsvC32) Format() Format { return c.ob.Format() }
+func (c *PsivC32) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *ApsvC32) Scheme() Scheme { return c.ob.Scheme() }
+func (c *PsivC32) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *ApsvC32) Encoding() Encoding { return c.ob.Encoding() }
+func (c *PsivC32) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*ApsvC32)(nil)
+var _ Codec = (*PsivC32)(nil)
 
-// ApsvB32 is the fixed-format codec for "apsv.b32". The encoding is part of the
+// PsivB32 is the fixed-format codec for "psiv.b32". The encoding is part of the
 // type name and never optional.
-type ApsvB32 struct{ ob *Ob }
+type PsivB32 struct{ ob *Ob }
 
-// NewApsvB32 creates a ApsvB32 from a key string.
-func NewApsvB32(key string) (*ApsvB32, error) {
-	ob, err := New("apsv.b32", key)
+// NewPsivB32 creates a PsivB32 from a key string.
+func NewPsivB32(key string) (*PsivB32, error) {
+	ob, err := New("psiv.b32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvB32{ob}, nil
+	return &PsivB32{ob}, nil
 }
 
-// NewApsvB32FromBytes creates a ApsvB32 from a raw key byte slice.
-func NewApsvB32FromBytes(key []byte) (*ApsvB32, error) {
-	ob, err := NewObFromBytes("apsv.b32", key)
+// NewPsivB32FromBytes creates a PsivB32 from a raw key byte slice.
+func NewPsivB32FromBytes(key []byte) (*PsivB32, error) {
+	ob, err := NewObFromBytes("psiv.b32", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvB32{ob}, nil
+	return &PsivB32{ob}, nil
 }
 
-// NewApsvB32Keyless creates a ApsvB32 with the hardcoded key (testing only — NOT SECURE).
-func NewApsvB32Keyless() (*ApsvB32, error) {
-	ob, err := NewObKeyless("apsv.b32")
+// NewPsivB32Keyless creates a PsivB32 with the hardcoded key (testing only — NOT SECURE).
+func NewPsivB32Keyless() (*PsivB32, error) {
+	ob, err := NewObKeyless("psiv.b32")
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvB32{ob}, nil
+	return &PsivB32{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *ApsvB32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *PsivB32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *ApsvB32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *PsivB32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *ApsvB32) Format() Format { return c.ob.Format() }
+func (c *PsivB32) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *ApsvB32) Scheme() Scheme { return c.ob.Scheme() }
+func (c *PsivB32) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *ApsvB32) Encoding() Encoding { return c.ob.Encoding() }
+func (c *PsivB32) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*ApsvB32)(nil)
+var _ Codec = (*PsivB32)(nil)
 
-// ApsvB64 is the fixed-format codec for "apsv.b64". The encoding is part of the
+// PsivB64 is the fixed-format codec for "psiv.b64". The encoding is part of the
 // type name and never optional.
-type ApsvB64 struct{ ob *Ob }
+type PsivB64 struct{ ob *Ob }
 
-// NewApsvB64 creates a ApsvB64 from a key string.
-func NewApsvB64(key string) (*ApsvB64, error) {
-	ob, err := New("apsv.b64", key)
+// NewPsivB64 creates a PsivB64 from a key string.
+func NewPsivB64(key string) (*PsivB64, error) {
+	ob, err := New("psiv.b64", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvB64{ob}, nil
+	return &PsivB64{ob}, nil
 }
 
-// NewApsvB64FromBytes creates a ApsvB64 from a raw key byte slice.
-func NewApsvB64FromBytes(key []byte) (*ApsvB64, error) {
-	ob, err := NewObFromBytes("apsv.b64", key)
+// NewPsivB64FromBytes creates a PsivB64 from a raw key byte slice.
+func NewPsivB64FromBytes(key []byte) (*PsivB64, error) {
+	ob, err := NewObFromBytes("psiv.b64", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvB64{ob}, nil
+	return &PsivB64{ob}, nil
 }
 
-// NewApsvB64Keyless creates a ApsvB64 with the hardcoded key (testing only — NOT SECURE).
-func NewApsvB64Keyless() (*ApsvB64, error) {
-	ob, err := NewObKeyless("apsv.b64")
+// NewPsivB64Keyless creates a PsivB64 with the hardcoded key (testing only — NOT SECURE).
+func NewPsivB64Keyless() (*PsivB64, error) {
+	ob, err := NewObKeyless("psiv.b64")
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvB64{ob}, nil
+	return &PsivB64{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *ApsvB64) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *PsivB64) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *ApsvB64) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *PsivB64) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *ApsvB64) Format() Format { return c.ob.Format() }
+func (c *PsivB64) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *ApsvB64) Scheme() Scheme { return c.ob.Scheme() }
+func (c *PsivB64) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *ApsvB64) Encoding() Encoding { return c.ob.Encoding() }
+func (c *PsivB64) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*ApsvB64)(nil)
+var _ Codec = (*PsivB64)(nil)
 
-// ApsvHex is the fixed-format codec for "apsv.hex". The encoding is part of the
+// PsivHex is the fixed-format codec for "psiv.hex". The encoding is part of the
 // type name and never optional.
-type ApsvHex struct{ ob *Ob }
+type PsivHex struct{ ob *Ob }
 
-// NewApsvHex creates a ApsvHex from a key string.
-func NewApsvHex(key string) (*ApsvHex, error) {
-	ob, err := New("apsv.hex", key)
+// NewPsivHex creates a PsivHex from a key string.
+func NewPsivHex(key string) (*PsivHex, error) {
+	ob, err := New("psiv.hex", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvHex{ob}, nil
+	return &PsivHex{ob}, nil
 }
 
-// NewApsvHexFromBytes creates a ApsvHex from a raw key byte slice.
-func NewApsvHexFromBytes(key []byte) (*ApsvHex, error) {
-	ob, err := NewObFromBytes("apsv.hex", key)
+// NewPsivHexFromBytes creates a PsivHex from a raw key byte slice.
+func NewPsivHexFromBytes(key []byte) (*PsivHex, error) {
+	ob, err := NewObFromBytes("psiv.hex", key)
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvHex{ob}, nil
+	return &PsivHex{ob}, nil
 }
 
-// NewApsvHexKeyless creates a ApsvHex with the hardcoded key (testing only — NOT SECURE).
-func NewApsvHexKeyless() (*ApsvHex, error) {
-	ob, err := NewObKeyless("apsv.hex")
+// NewPsivHexKeyless creates a PsivHex with the hardcoded key (testing only — NOT SECURE).
+func NewPsivHexKeyless() (*PsivHex, error) {
+	ob, err := NewObKeyless("psiv.hex")
 	if err != nil {
 		return nil, err
 	}
-	return &ApsvHex{ob}, nil
+	return &PsivHex{ob}, nil
 }
 
 // Enc encrypts and encodes plaintext to obtext.
-func (c *ApsvHex) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
+func (c *PsivHex) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
 
 // Dec decodes and decrypts obtext to plaintext.
-func (c *ApsvHex) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
+func (c *PsivHex) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
 
 // Format returns the fixed format (scheme + encoding).
-func (c *ApsvHex) Format() Format { return c.ob.Format() }
+func (c *PsivHex) Format() Format { return c.ob.Format() }
 
 // Scheme returns the fixed scheme.
-func (c *ApsvHex) Scheme() Scheme { return c.ob.Scheme() }
+func (c *PsivHex) Scheme() Scheme { return c.ob.Scheme() }
 
 // Encoding returns the fixed encoding.
-func (c *ApsvHex) Encoding() Encoding { return c.ob.Encoding() }
+func (c *PsivHex) Encoding() Encoding { return c.ob.Encoding() }
 
-var _ Codec = (*ApsvHex)(nil)
-
-// UpbcC32 is the fixed-format codec for "upbc.c32". The encoding is part of the
-// type name and never optional.
-type UpbcC32 struct{ ob *Ob }
-
-// NewUpbcC32 creates a UpbcC32 from a key string.
-func NewUpbcC32(key string) (*UpbcC32, error) {
-	ob, err := New("upbc.c32", key)
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcC32{ob}, nil
-}
-
-// NewUpbcC32FromBytes creates a UpbcC32 from a raw key byte slice.
-func NewUpbcC32FromBytes(key []byte) (*UpbcC32, error) {
-	ob, err := NewObFromBytes("upbc.c32", key)
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcC32{ob}, nil
-}
-
-// NewUpbcC32Keyless creates a UpbcC32 with the hardcoded key (testing only — NOT SECURE).
-func NewUpbcC32Keyless() (*UpbcC32, error) {
-	ob, err := NewObKeyless("upbc.c32")
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcC32{ob}, nil
-}
-
-// Enc encrypts and encodes plaintext to obtext.
-func (c *UpbcC32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
-
-// Dec decodes and decrypts obtext to plaintext.
-func (c *UpbcC32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
-
-// Format returns the fixed format (scheme + encoding).
-func (c *UpbcC32) Format() Format { return c.ob.Format() }
-
-// Scheme returns the fixed scheme.
-func (c *UpbcC32) Scheme() Scheme { return c.ob.Scheme() }
-
-// Encoding returns the fixed encoding.
-func (c *UpbcC32) Encoding() Encoding { return c.ob.Encoding() }
-
-var _ Codec = (*UpbcC32)(nil)
-
-// UpbcB32 is the fixed-format codec for "upbc.b32". The encoding is part of the
-// type name and never optional.
-type UpbcB32 struct{ ob *Ob }
-
-// NewUpbcB32 creates a UpbcB32 from a key string.
-func NewUpbcB32(key string) (*UpbcB32, error) {
-	ob, err := New("upbc.b32", key)
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcB32{ob}, nil
-}
-
-// NewUpbcB32FromBytes creates a UpbcB32 from a raw key byte slice.
-func NewUpbcB32FromBytes(key []byte) (*UpbcB32, error) {
-	ob, err := NewObFromBytes("upbc.b32", key)
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcB32{ob}, nil
-}
-
-// NewUpbcB32Keyless creates a UpbcB32 with the hardcoded key (testing only — NOT SECURE).
-func NewUpbcB32Keyless() (*UpbcB32, error) {
-	ob, err := NewObKeyless("upbc.b32")
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcB32{ob}, nil
-}
-
-// Enc encrypts and encodes plaintext to obtext.
-func (c *UpbcB32) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
-
-// Dec decodes and decrypts obtext to plaintext.
-func (c *UpbcB32) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
-
-// Format returns the fixed format (scheme + encoding).
-func (c *UpbcB32) Format() Format { return c.ob.Format() }
-
-// Scheme returns the fixed scheme.
-func (c *UpbcB32) Scheme() Scheme { return c.ob.Scheme() }
-
-// Encoding returns the fixed encoding.
-func (c *UpbcB32) Encoding() Encoding { return c.ob.Encoding() }
-
-var _ Codec = (*UpbcB32)(nil)
-
-// UpbcB64 is the fixed-format codec for "upbc.b64". The encoding is part of the
-// type name and never optional.
-type UpbcB64 struct{ ob *Ob }
-
-// NewUpbcB64 creates a UpbcB64 from a key string.
-func NewUpbcB64(key string) (*UpbcB64, error) {
-	ob, err := New("upbc.b64", key)
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcB64{ob}, nil
-}
-
-// NewUpbcB64FromBytes creates a UpbcB64 from a raw key byte slice.
-func NewUpbcB64FromBytes(key []byte) (*UpbcB64, error) {
-	ob, err := NewObFromBytes("upbc.b64", key)
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcB64{ob}, nil
-}
-
-// NewUpbcB64Keyless creates a UpbcB64 with the hardcoded key (testing only — NOT SECURE).
-func NewUpbcB64Keyless() (*UpbcB64, error) {
-	ob, err := NewObKeyless("upbc.b64")
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcB64{ob}, nil
-}
-
-// Enc encrypts and encodes plaintext to obtext.
-func (c *UpbcB64) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
-
-// Dec decodes and decrypts obtext to plaintext.
-func (c *UpbcB64) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
-
-// Format returns the fixed format (scheme + encoding).
-func (c *UpbcB64) Format() Format { return c.ob.Format() }
-
-// Scheme returns the fixed scheme.
-func (c *UpbcB64) Scheme() Scheme { return c.ob.Scheme() }
-
-// Encoding returns the fixed encoding.
-func (c *UpbcB64) Encoding() Encoding { return c.ob.Encoding() }
-
-var _ Codec = (*UpbcB64)(nil)
-
-// UpbcHex is the fixed-format codec for "upbc.hex". The encoding is part of the
-// type name and never optional.
-type UpbcHex struct{ ob *Ob }
-
-// NewUpbcHex creates a UpbcHex from a key string.
-func NewUpbcHex(key string) (*UpbcHex, error) {
-	ob, err := New("upbc.hex", key)
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcHex{ob}, nil
-}
-
-// NewUpbcHexFromBytes creates a UpbcHex from a raw key byte slice.
-func NewUpbcHexFromBytes(key []byte) (*UpbcHex, error) {
-	ob, err := NewObFromBytes("upbc.hex", key)
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcHex{ob}, nil
-}
-
-// NewUpbcHexKeyless creates a UpbcHex with the hardcoded key (testing only — NOT SECURE).
-func NewUpbcHexKeyless() (*UpbcHex, error) {
-	ob, err := NewObKeyless("upbc.hex")
-	if err != nil {
-		return nil, err
-	}
-	return &UpbcHex{ob}, nil
-}
-
-// Enc encrypts and encodes plaintext to obtext.
-func (c *UpbcHex) Enc(plaintext string) (string, error) { return c.ob.Enc(plaintext) }
-
-// Dec decodes and decrypts obtext to plaintext.
-func (c *UpbcHex) Dec(obtext string) (string, error) { return c.ob.Dec(obtext) }
-
-// Format returns the fixed format (scheme + encoding).
-func (c *UpbcHex) Format() Format { return c.ob.Format() }
-
-// Scheme returns the fixed scheme.
-func (c *UpbcHex) Scheme() Scheme { return c.ob.Scheme() }
-
-// Encoding returns the fixed encoding.
-func (c *UpbcHex) Encoding() Encoding { return c.ob.Encoding() }
-
-var _ Codec = (*UpbcHex)(nil)
+var _ Codec = (*PsivHex)(nil)

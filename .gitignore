@@ -2,9 +2,9 @@ vendor
 *.sw[o-z]
 *.out
 out
-# Built CLI binaries, root-anchored so the patterns don't match the cmd/ob and
-# cmd/obz source directories (a bare "ob"/"obz" would). The obcrypt binary
-# needs no entry: it can't sit at the repo root next to the obcrypt/ package
-# dir, so `go build` writes it elsewhere (-o) or `go install` to GOPATH/bin.
+# Built ob binary at the repo root, root-anchored so it doesn't match the
+# cmd/ob source dir. The obu and obcrypt binaries need no entry: they share a
+# name with a package directory (obu/, obcrypt/), so `go build` cannot write
+# them at the root anyway; `go install` puts all binaries in GOPATH/bin and the
+# CLI tests build to a temp dir.
 /ob
-/obz

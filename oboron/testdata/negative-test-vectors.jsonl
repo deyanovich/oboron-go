@@ -1,0 +1,29 @@
+{"op": "dec", "format": "dsiv.c32", "input": "37MM8KRVH8XK1G1RXYZXX3KB4JD7PRSA24", "reason": "non-canonical c32: uppercase"}
+{"op": "dec", "format": "dsiv.c32", "input": "37mm8krvh8xk1g1rxyzxx3kb4jd7prsa2i", "reason": "non-canonical c32: excluded letter i/l/o/u"}
+{"op": "dec", "format": "dsiv.c32", "input": "37mm8krvh8xk1g1rxyzxx3kb4jd7prsa24=", "reason": "non-canonical c32: padding character"}
+{"op": "dec", "format": "dsiv.c32", "input": "37m m8krvh8xk1g1rxyzxx3kb4jd7prsa24", "reason": "non-canonical c32: embedded whitespace"}
+{"op": "dec", "format": "dsiv.c32", "input": "37mm8krvh", "reason": "impossible c32 length (9, i.e. 1 mod 8)"}
+{"op": "dec", "format": "dsiv.b32", "input": "dhuuity3ri5tbqby56755dtlesnhwyzkce", "reason": "non-canonical b32: lowercase"}
+{"op": "dec", "format": "dsiv.b32", "input": "DHUUITY3RI5TBQBY56755DTLESNHWYZKCE=", "reason": "non-canonical b32: padding character"}
+{"op": "dec", "format": "dsiv.b32", "input": "DHUUITY3RI5TBQBY56755DTLESNHWYZKC0", "reason": "non-canonical b32: out-of-alphabet '0'"}
+{"op": "dec", "format": "dsiv.b32", "input": "DHUUITY3R", "reason": "impossible b32 length (9, i.e. 1 mod 8)"}
+{"op": "dec", "format": "dsiv.b64", "input": "GelETxuKOzDAOO-_3o5rJJp7YyoR=", "reason": "non-canonical b64: padding character"}
+{"op": "dec", "format": "dsiv.b64", "input": "GelETxuKOzDAOO+/3o5rJJp7YyoR", "reason": "non-canonical b64: standard +/ instead of url-safe"}
+{"op": "dec", "format": "dsiv.b64", "input": "GelET", "reason": "impossible b64 length (5, i.e. 1 mod 4)"}
+{"op": "dec", "format": "dsiv.hex", "input": "19E9444F1B8A3B30C038EFBFDE8E6B249A7B632A11", "reason": "non-canonical hex: uppercase"}
+{"op": "dec", "format": "dsiv.hex", "input": "19e9444f1b8a3b30c038efbfde8e6b249a7b632a1", "reason": "non-canonical hex: odd length"}
+{"op": "dec", "format": "dsiv.hex", "input": "19e9444f1b8a3b30c038efbfde8e6b249a7b632a1g", "reason": "non-canonical hex: non-hex character"}
+{"op": "dec", "format": "dsiv.c32", "input": "37mm8krvh8xk1g1rxyzxx3kb4jd7prsa25", "reason": "non-canonical c32: non-zero unused trailing bits"}
+{"op": "dec", "format": "dsiv.hex", "input": "000000000000000000000000000000", "reason": "scheme output too short (15 < 16 minimum)"}
+{"op": "dec", "format": "dgcmsiv.hex", "input": "000000000000000000000000000000", "reason": "scheme output too short (15 < 16 minimum)"}
+{"op": "dec", "format": "psiv.hex", "input": "00000000000000000000000000000000000000000000000000000000000000", "reason": "scheme output too short (31 < 32 minimum)"}
+{"op": "dec", "format": "pgcmsiv.hex", "input": "000000000000000000000000000000000000000000000000000000", "reason": "scheme output too short (27 < 28 minimum)"}
+{"op": "dec", "format": "dsiv.hex", "input": "19e9444f1b8a3b30c038efbfde8e6b249a7b632a10", "reason": "authentication failure: tampered ciphertext"}
+{"op": "dec", "format": "dsiv.c32", "input": "37mm8krvh8xk1g1rxyzxx3kb4jd7prsa20", "reason": "authentication failure: tampered ciphertext"}
+{"op": "dec", "format": "psiv.hex", "input": "000102030405060708090a0b0c0d0e0fbf33e0ff1662b9948ffddc8d699fe1ce3f0457501c", "reason": "authentication failure: tampered ciphertext"}
+{"op": "dec", "format": "psiv.c32", "input": "000g40r40m30e209185gr38e1yzk7r7z2shbk54fzqe8ttczw773y12qa0e0", "reason": "authentication failure: tampered ciphertext"}
+{"op": "dec", "format": "dgcmsiv.hex", "input": "5cc8fb4c295da29e7f236afe9b622bf03bd671ef9c", "reason": "authentication failure: tampered ciphertext"}
+{"op": "dec", "format": "dgcmsiv.c32", "input": "bk4fpk19bph9wzs3dbz9prhby0xxcwffkg", "reason": "authentication failure: tampered ciphertext"}
+{"op": "dec", "format": "pgcmsiv.hex", "input": "000102030405060708090a0be3e04fef2503c60354bd5b472a14bb07522d34e538", "reason": "authentication failure: tampered ciphertext"}
+{"op": "dec", "format": "pgcmsiv.c32", "input": "000g40r40m30e209185y7r2fxwjg7hg3ajynphsa2jxgemhd6kjkg", "reason": "authentication failure: tampered ciphertext"}
+{"op": "enc", "format": "dsiv.c32", "input": "", "reason": "empty plaintext is rejected"}

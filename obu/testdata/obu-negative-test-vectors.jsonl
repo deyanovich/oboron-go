@@ -1,0 +1,3 @@
+{"op": "dec", "format": "upcbc.hex", "input": "00000000000000000000000000000000", "reason": "upcbc too short (16 < 32: IV plus at least one block)"}
+{"op": "dec", "format": "upcbc.hex", "input": "00000000000000000000000000000000000000000000000000000000000000000000000000000000", "reason": "upcbc ciphertext after the IV is not a block multiple"}
+{"op": "dec", "format": "zdcbc.hex", "input": "0000000000000000", "reason": "zdcbc ciphertext is not a block multiple (8 bytes)"}

@@ -17,7 +17,8 @@ type testVector struct {
 	Obtext    string `json:"obtext"`
 }
 
-// metaEntry represents the metadata line in legacy vector files.
+// metaEntry represents an optional metadata line in a vector file (skipped if
+// present; the canonical core vectors carry none).
 type metaEntry struct {
 	Type   string `json:"type"`
 	Secret string `json:"secret"`
@@ -50,66 +51,56 @@ func runOb(t *testing.T, binary, home string, args ...string) (string, bool) {
 	return strings.TrimRight(string(out), "\n\r"), err == nil
 }
 
-// Valid 86-character base64url-nopad key (512-bit)
-const testKeyB64 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-const testKeyB64Alt = "ZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+// Valid 128-character hex keys (512-bit). Hex is the only accepted key form.
+const testKeyHex = "0000000000000000000000000000000000000000000000000000000000000000" +
+	"0000000000000000000000000000000000000000000000000000000000000000"
+const testKeyHexAlt = "1100000000000000000000000000000000000000000000000000000000000000" +
+	"0000000000000000000000000000000000000000000000000000000000000000"
 
 // ─── Keyless enc tests (all schemes) ────────────────────────────────────────
 
-func TestObEncKeylessAasv(t *testing.T) {
+func TestObEncKeylessDsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	stdout, ok := runOb(t, binary, home, "enc", "-K", "--aasv", "--b32", "test123")
+	stdout, ok := runOb(t, binary, home, "enc", "-K", "--dsiv", "--b32", "test123")
 	if !ok {
-		t.Fatal("ob enc -K --aasv --b32 test123 failed")
+		t.Fatal("ob enc -K --dsiv --b32 test123 failed")
 	}
 	if stdout == "" {
 		t.Fatal("ob enc produced empty output")
 	}
 }
 
-func TestObEncKeylessApsv(t *testing.T) {
+func TestObEncKeylessPsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	stdout, ok := runOb(t, binary, home, "enc", "-K", "--apsv", "--b32", "test123")
+	stdout, ok := runOb(t, binary, home, "enc", "-K", "--psiv", "--b32", "test123")
 	if !ok {
-		t.Fatal("ob enc -K --apsv --b32 test123 failed")
+		t.Fatal("ob enc -K --psiv --b32 test123 failed")
 	}
 	if stdout == "" {
 		t.Fatal("ob enc produced empty output")
 	}
 }
 
-func TestObEncKeylessAags(t *testing.T) {
+func TestObEncKeylessDgcmsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	stdout, ok := runOb(t, binary, home, "enc", "-K", "--aags", "--b32", "test123")
+	stdout, ok := runOb(t, binary, home, "enc", "-K", "--dgcmsiv", "--b32", "test123")
 	if !ok {
-		t.Fatal("ob enc -K --aags --b32 test123 failed")
+		t.Fatal("ob enc -K --dgcmsiv --b32 test123 failed")
 	}
 	if stdout == "" {
 		t.Fatal("ob enc produced empty output")
 	}
 }
 
-func TestObEncKeylessApgs(t *testing.T) {
+func TestObEncKeylessPgcmsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	stdout, ok := runOb(t, binary, home, "enc", "-K", "--apgs", "--b32", "test123")
+	stdout, ok := runOb(t, binary, home, "enc", "-K", "--pgcmsiv", "--b32", "test123")
 	if !ok {
-		t.Fatal("ob enc -K --apgs --b32 test123 failed")
-	}
-	if stdout == "" {
-		t.Fatal("ob enc produced empty output")
-	}
-}
-
-func TestObEncKeylessUpbc(t *testing.T) {
-	binary := obBinary(t)
-	home := testHomeDir(t)
-	stdout, ok := runOb(t, binary, home, "enc", "-K", "--upbc", "--b32", "test123")
-	if !ok {
-		t.Fatal("ob enc -K --upbc --b32 test123 failed")
+		t.Fatal("ob enc -K --pgcmsiv --b32 test123 failed")
 	}
 	if stdout == "" {
 		t.Fatal("ob enc produced empty output")
@@ -118,10 +109,10 @@ func TestObEncKeylessUpbc(t *testing.T) {
 
 // ─── Explicit key enc tests ─────────────────────────────────────────────────
 
-func TestObEncWithExplicitKeyAasv(t *testing.T) {
+func TestObEncWithExplicitKeyDsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	stdout, ok := runOb(t, binary, home, "enc", "--key", testKeyB64, "--aasv", "--b32", "test_data")
+	stdout, ok := runOb(t, binary, home, "enc", "--key", testKeyHex, "--dsiv", "--b32", "test_data")
 	if !ok {
 		t.Fatal("ob enc with explicit key failed")
 	}
@@ -130,10 +121,10 @@ func TestObEncWithExplicitKeyAasv(t *testing.T) {
 	}
 }
 
-func TestObEncWithExplicitKeyAags(t *testing.T) {
+func TestObEncWithExplicitKeyDgcmsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	stdout, ok := runOb(t, binary, home, "enc", "--key", testKeyB64, "--aags", "--b32", "test_data")
+	stdout, ok := runOb(t, binary, home, "enc", "--key", testKeyHex, "--dgcmsiv", "--b32", "test_data")
 	if !ok {
 		t.Fatal("ob enc with explicit key failed")
 	}
@@ -144,16 +135,16 @@ func TestObEncWithExplicitKeyAags(t *testing.T) {
 
 // ─── Enc/dec roundtrip tests ────────────────────────────────────────────────
 
-func TestObEncDecRoundtripAasv(t *testing.T) {
+func TestObEncDecRoundtripDsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	enc, ok := runOb(t, binary, home, "enc", "-K", "--aasv", "--b32", "hello_world")
+	enc, ok := runOb(t, binary, home, "enc", "-K", "--dsiv", "--b32", "hello_world")
 	if !ok || enc == "" {
 		t.Fatal("enc failed")
 	}
 
-	dec, ok := runOb(t, binary, home, "dec", "-K", "--aasv", "--b32", enc)
+	dec, ok := runOb(t, binary, home, "dec", "-K", "--dsiv", "--b32", enc)
 	if !ok {
 		t.Fatal("dec failed")
 	}
@@ -162,16 +153,16 @@ func TestObEncDecRoundtripAasv(t *testing.T) {
 	}
 }
 
-func TestObEncDecRoundtripAags(t *testing.T) {
+func TestObEncDecRoundtripDgcmsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	enc, ok := runOb(t, binary, home, "enc", "--key", testKeyB64Alt, "--aags", "--b32", "hello_world")
+	enc, ok := runOb(t, binary, home, "enc", "--key", testKeyHexAlt, "--dgcmsiv", "--b32", "hello_world")
 	if !ok || enc == "" {
 		t.Fatal("enc failed")
 	}
 
-	dec, ok := runOb(t, binary, home, "dec", "--key", testKeyB64Alt, "--aags", "--b32", enc)
+	dec, ok := runOb(t, binary, home, "dec", "--key", testKeyHexAlt, "--dgcmsiv", "--b32", enc)
 	if !ok {
 		t.Fatal("dec failed")
 	}
@@ -180,16 +171,16 @@ func TestObEncDecRoundtripAags(t *testing.T) {
 	}
 }
 
-func TestObEncDecRoundtripApgs(t *testing.T) {
+func TestObEncDecRoundtripPgcmsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	enc, ok := runOb(t, binary, home, "enc", "-K", "--apgs", "--b32", "hello_world")
+	enc, ok := runOb(t, binary, home, "enc", "-K", "--pgcmsiv", "--b32", "hello_world")
 	if !ok || enc == "" {
 		t.Fatal("enc failed")
 	}
 
-	dec, ok := runOb(t, binary, home, "dec", "-K", "--apgs", "--b32", enc)
+	dec, ok := runOb(t, binary, home, "dec", "-K", "--pgcmsiv", "--b32", enc)
 	if !ok {
 		t.Fatal("dec failed")
 	}
@@ -198,16 +189,16 @@ func TestObEncDecRoundtripApgs(t *testing.T) {
 	}
 }
 
-func TestObEncDecRoundtripApsv(t *testing.T) {
+func TestObEncDecRoundtripPsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	enc, ok := runOb(t, binary, home, "enc", "-K", "--apsv", "--b32", "hello_world")
+	enc, ok := runOb(t, binary, home, "enc", "-K", "--psiv", "--b32", "hello_world")
 	if !ok || enc == "" {
 		t.Fatal("enc failed")
 	}
 
-	dec, ok := runOb(t, binary, home, "dec", "-K", "--apsv", "--b32", enc)
+	dec, ok := runOb(t, binary, home, "dec", "-K", "--psiv", "--b32", enc)
 	if !ok {
 		t.Fatal("dec failed")
 	}
@@ -216,34 +207,16 @@ func TestObEncDecRoundtripApsv(t *testing.T) {
 	}
 }
 
-func TestObEncDecRoundtripUpbc(t *testing.T) {
+func TestObEncDecRoundtripB64Dsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	enc, ok := runOb(t, binary, home, "enc", "-K", "--upbc", "--b32", "hello_world")
+	enc, ok := runOb(t, binary, home, "enc", "-K", "--dsiv", "--b64", "hello_b64")
 	if !ok || enc == "" {
 		t.Fatal("enc failed")
 	}
 
-	dec, ok := runOb(t, binary, home, "dec", "-K", "--upbc", "--b32", enc)
-	if !ok {
-		t.Fatal("dec failed")
-	}
-	if dec != "hello_world" {
-		t.Errorf("roundtrip: got %q, want %q", dec, "hello_world")
-	}
-}
-
-func TestObEncDecRoundtripB64Aasv(t *testing.T) {
-	binary := obBinary(t)
-	home := testHomeDir(t)
-
-	enc, ok := runOb(t, binary, home, "enc", "-K", "--aasv", "--b64", "hello_b64")
-	if !ok || enc == "" {
-		t.Fatal("enc failed")
-	}
-
-	dec, ok := runOb(t, binary, home, "dec", "-K", "--aasv", "--b64", enc)
+	dec, ok := runOb(t, binary, home, "dec", "-K", "--dsiv", "--b64", enc)
 	if !ok {
 		t.Fatal("dec failed")
 	}
@@ -252,16 +225,16 @@ func TestObEncDecRoundtripB64Aasv(t *testing.T) {
 	}
 }
 
-func TestObEncDecRoundtripHexAasv(t *testing.T) {
+func TestObEncDecRoundtripHexDsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	enc, ok := runOb(t, binary, home, "enc", "-K", "--aasv", "--hex", "hello_hex")
+	enc, ok := runOb(t, binary, home, "enc", "-K", "--dsiv", "--hex", "hello_hex")
 	if !ok || enc == "" {
 		t.Fatal("enc failed")
 	}
 
-	dec, ok := runOb(t, binary, home, "dec", "-K", "--aasv", "--hex", enc)
+	dec, ok := runOb(t, binary, home, "dec", "-K", "--dsiv", "--hex", enc)
 	if !ok {
 		t.Fatal("dec failed")
 	}
@@ -270,16 +243,16 @@ func TestObEncDecRoundtripHexAasv(t *testing.T) {
 	}
 }
 
-func TestObEncDecRoundtripWithExplicitKeyAasv(t *testing.T) {
+func TestObEncDecRoundtripWithExplicitKeyDsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	enc, ok := runOb(t, binary, home, "enc", "--key", testKeyB64, "--aasv", "--b32", "hello_key_world")
+	enc, ok := runOb(t, binary, home, "enc", "--key", testKeyHex, "--dsiv", "--b32", "hello_key_world")
 	if !ok || enc == "" {
 		t.Fatal("enc failed")
 	}
 
-	dec, ok := runOb(t, binary, home, "dec", "--key", testKeyB64, "--aasv", "--b32", enc)
+	dec, ok := runOb(t, binary, home, "dec", "--key", testKeyHex, "--dsiv", "--b32", enc)
 	if !ok {
 		t.Fatal("dec failed")
 	}
@@ -294,7 +267,7 @@ func TestObEncAllSchemes(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	schemes := []string{"--aags", "--aasv", "--upbc", "--apgs", "--apsv"}
+	schemes := []string{"--dgcmsiv", "--dsiv", "--pgcmsiv", "--psiv"}
 	for _, scheme := range schemes {
 		stdout, ok := runOb(t, binary, home, "enc", "-K", scheme, "--b32", "test")
 		if !ok {
@@ -312,7 +285,7 @@ func TestObEncAllEncodings(t *testing.T) {
 
 	encodings := []string{"--b32", "--b64", "--hex"}
 	for _, enc := range encodings {
-		stdout, ok := runOb(t, binary, home, "enc", "-K", "--aasv", enc, "test")
+		stdout, ok := runOb(t, binary, home, "enc", "-K", "--dsiv", enc, "test")
 		if !ok {
 			t.Errorf("enc with %s failed", enc)
 		}
@@ -324,7 +297,7 @@ func TestObEncAllEncodings(t *testing.T) {
 
 // ─── Short alias tests ──────────────────────────────────────────────────────
 
-func TestObEncShortAliasAasv(t *testing.T) {
+func TestObEncShortAliasDsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 	stdout, ok := runOb(t, binary, home, "enc", "-K", "-s", "--b32", "test123")
@@ -333,7 +306,7 @@ func TestObEncShortAliasAasv(t *testing.T) {
 	}
 }
 
-func TestObEncShortAliasApsv(t *testing.T) {
+func TestObEncShortAliasPsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 	stdout, ok := runOb(t, binary, home, "enc", "-K", "-S", "--b32", "test123")
@@ -342,16 +315,7 @@ func TestObEncShortAliasApsv(t *testing.T) {
 	}
 }
 
-func TestObEncShortAliasUpbc(t *testing.T) {
-	binary := obBinary(t)
-	home := testHomeDir(t)
-	stdout, ok := runOb(t, binary, home, "enc", "-K", "-u", "--b32", "test123")
-	if !ok || stdout == "" {
-		t.Fatal("enc with -u alias failed")
-	}
-}
-
-func TestObDecShortAliasAasv(t *testing.T) {
+func TestObDecShortAliasDsiv(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
@@ -369,30 +333,12 @@ func TestObDecShortAliasAasv(t *testing.T) {
 	}
 }
 
-func TestObDecShortAliasUpbc(t *testing.T) {
-	binary := obBinary(t)
-	home := testHomeDir(t)
-
-	enc, ok := runOb(t, binary, home, "enc", "-K", "-u", "--b32", "hello123")
-	if !ok || enc == "" {
-		t.Fatal("enc failed")
-	}
-
-	dec, ok := runOb(t, binary, home, "dec", "-K", "-u", "--b32", enc)
-	if !ok {
-		t.Fatal("dec failed")
-	}
-	if dec != "hello123" {
-		t.Errorf("roundtrip: got %q, want %q", dec, "hello123")
-	}
-}
-
 // ─── Error handling tests ───────────────────────────────────────────────────
 
 func TestObEncInvalidKeyTooShort(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	_, ok := runOb(t, binary, home, "enc", "--key", "TOOSHORT", "--aasv", "--b32", "hello")
+	_, ok := runOb(t, binary, home, "enc", "--key", "TOOSHORT", "--dsiv", "--b32", "hello")
 	if ok {
 		t.Fatal("expected failure for too-short key")
 	}
@@ -401,7 +347,7 @@ func TestObEncInvalidKeyTooShort(t *testing.T) {
 func TestObEncInvalidKeyEmpty(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	_, ok := runOb(t, binary, home, "enc", "--key", "", "--aasv", "--b32", "hello")
+	_, ok := runOb(t, binary, home, "enc", "--key", "", "--dsiv", "--b32", "hello")
 	if ok {
 		t.Fatal("expected failure for empty key")
 	}
@@ -410,7 +356,7 @@ func TestObEncInvalidKeyEmpty(t *testing.T) {
 func TestObDecGarbageInput(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	_, ok := runOb(t, binary, home, "dec", "-K", "--aasv", "--b32", "notvalidobtext")
+	_, ok := runOb(t, binary, home, "dec", "-K", "--dsiv", "--b32", "notvalidobtext")
 	if ok {
 		t.Fatal("expected failure for garbage input")
 	}
@@ -420,7 +366,7 @@ func TestObEncMissingPlaintext(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 	// No plaintext argument - should read from stdin which is empty
-	cmd := exec.Command(binary, "enc", "-K", "--aasv", "--b32")
+	cmd := exec.Command(binary, "enc", "-K", "--dsiv", "--b32")
 	cmd.Env = append(os.Environ(), "HOME="+home)
 	cmd.Stdin = strings.NewReader("")
 	err := cmd.Run()
@@ -432,7 +378,7 @@ func TestObEncMissingPlaintext(t *testing.T) {
 func TestObEncEmptyPlaintext(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
-	_, ok := runOb(t, binary, home, "enc", "-K", "--aasv", "--b32", "")
+	_, ok := runOb(t, binary, home, "enc", "-K", "--dsiv", "--b32", "")
 	if ok {
 		t.Fatal("expected failure for empty plaintext")
 	}
@@ -442,8 +388,8 @@ func TestObEncDifferentKeysProduceDifferentOutput(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	encA, okA := runOb(t, binary, home, "enc", "--key", testKeyB64, "--aasv", "--b32", "same_input")
-	encB, okB := runOb(t, binary, home, "enc", "--key", testKeyB64Alt, "--aasv", "--b32", "same_input")
+	encA, okA := runOb(t, binary, home, "enc", "--key", testKeyHex, "--dsiv", "--b32", "same_input")
+	encB, okB := runOb(t, binary, home, "enc", "--key", testKeyHexAlt, "--dsiv", "--b32", "same_input")
 	if !okA || !okB {
 		t.Fatal("enc failed")
 	}
@@ -469,7 +415,7 @@ func TestObHelp(t *testing.T) {
 
 func isDeterministicScheme(format string) bool {
 	scheme := strings.Split(format, ".")[0]
-	return scheme == "aags" || scheme == "aasv"
+	return scheme == "dgcmsiv" || scheme == "dsiv"
 }
 
 func loadVectors(t *testing.T, path string) []testVector {
@@ -514,7 +460,7 @@ func TestObVectorTests(t *testing.T) {
 	binary := obBinary(t)
 	home := testHomeDir(t)
 
-	vectors := loadVectors(t, "../../oboron/testdata/rs-test-vectors.jsonl")
+	vectors := loadVectors(t, "../../oboron/testdata/test-vectors.jsonl")
 	if len(vectors) == 0 {
 		t.Fatal("No test vectors loaded")
 	}

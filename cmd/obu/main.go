@@ -1,26 +1,32 @@
-// Command obz is the CLI for oboron's z-tier obfuscation schemes
-// (legacy and zrbcx): reversible obfuscation of a string, not
-// authenticated encryption. See https://oboron.org/.
+// Command obu is the CLI for oboron's obu schemes (upcbc and zdcbc):
+// confidentiality-only (upcbc, AES-256-CBC) and reversible obfuscation
+// (zdcbc) of a string — not authenticated encryption. See https://oboron.org/.
 package main
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"os"
-	"strings"
 
 	"github.com/urfave/cli/v2"
+	"oboron.org/go/internal/cliutil"
 	"oboron.org/go/internal/version"
 	"oboron.org/go/oboron"
-	"oboron.org/go/oboron/ztier"
+	"oboron.org/go/obu"
 )
 
+// testSecretWarning is the §6.4 SHOULD warning emitted when the fixed public
+// test secret is supplied via --secret or $OBORON_SECRET rather than --keyless.
+// It is suppressed on a failed dec so only the uniform dec error appears.
+const testSecretWarning = "warning: using the fixed public test secret (INSECURE — testing only); pass --keyless instead"
+
 func main() {
+	versionLine := fmt.Sprintf("obu oboron-go %s protocol=1.0 cli=1.0", cliutil.VersionToken(version.Version))
+	cliutil.HandleVersionRequest(os.Args, versionLine)
+
 	app := &cli.App{
-		Name:                   "obz",
-		Usage:                  "Encode and decode values with oboron z-tier obfuscation schemes",
-		Version:                version.Version,
+		Name:                   "obu",
+		Usage:                  "Encode and decode values with oboron obu schemes (upcbc, zdcbc)",
+		HideVersion:            true,
 		UseShortOptionHandling: true,
 		Commands: []*cli.Command{
 			encCmd(),
@@ -30,13 +36,10 @@ func main() {
 			profileCmd(),
 			secretCmd(),
 			secretgenCmd(),
-			completionCmd(),
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
-	}
+	os.Exit(cliutil.Run(app, os.Args))
 }
 
 // --- Shared flag builders ---
@@ -44,9 +47,10 @@ func main() {
 func secretFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:    "secret",
-			Aliases: []string{"s"},
-			Usage:   "Obfuscation secret (64 hex chars, 256-bit; or legacy 43-char base64); conflicts with --profile/--keyless",
+			Name: "secret",
+			// No single-letter alias: OBU.md §6 forbids one, to avoid
+			// confusion with the core ob CLI's -s (--dsiv) scheme flag.
+			Usage:   "obu secret (64 hex chars, 256-bit); conflicts with --profile/--keyless",
 			EnvVars: []string{"OBORON_SECRET"},
 		},
 		&cli.StringFlag{
@@ -64,8 +68,8 @@ func secretFlags() []cli.Flag {
 
 func schemeFlags() []cli.Flag {
 	return []cli.Flag{
-		&cli.BoolFlag{Name: "zrbcx", Aliases: []string{"r"}, Usage: "Use zrbcx scheme (optimized AES-CBC)"},
-		&cli.BoolFlag{Name: "legacy", Aliases: []string{"l"}, Usage: "Use legacy scheme (AES-CBC)"},
+		&cli.BoolFlag{Name: "upcbc", Aliases: []string{"u"}, Usage: "Use upcbc scheme (AES-256-CBC, confidentiality only)"},
+		&cli.BoolFlag{Name: "zdcbc", Aliases: []string{"z"}, Usage: "Use zdcbc scheme (AES-128-CBC, deterministic obfuscation)"},
 	}
 }
 
@@ -82,34 +86,140 @@ func formatFlag() cli.Flag {
 	return &cli.StringFlag{
 		Name:    "format",
 		Aliases: []string{"f"},
-		Usage:   `Format string e.g. "zrbcx.b64"; cannot combine with scheme/encoding flags`,
+		Usage:   `Format string e.g. "upcbc.b64"; cannot combine with scheme/encoding flags`,
 	}
+}
+
+func rawFlag() cli.Flag {
+	return &cli.BoolFlag{
+		Name:    "raw",
+		Aliases: []string{"0"},
+		Usage:   "Disable line framing: keep stdin's trailing newline and don't append one to stdout",
+	}
+}
+
+// encDecFlags is the full flag set shared by enc and dec.
+func encDecFlags() []cli.Flag {
+	flags := secretFlags()
+	flags = append(flags, schemeFlags()...)
+	flags = append(flags, encodingFlags()...)
+	flags = append(flags, formatFlag(), rawFlag())
+	return flags
 }
 
 // --- Helpers ---
 
-func readTextInput(c *cli.Context) (string, error) {
-	if c.NArg() > 0 {
-		return strings.Join(c.Args().Slice(), " "), nil
+// validateOptions performs the usage-error (exit-2) checks that must precede any
+// secret lookup or operation: at most one explicit secret source, and at most
+// one TEXT argument (CLI.md §4.1; OBU.md §6.1).
+func validateOptions(c *cli.Context) error {
+	sources := 0
+	if c.Bool("keyless") {
+		sources++
 	}
-	data, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return "", fmt.Errorf("failed to read stdin: %w", err)
+	if cliutil.FlagGiven(os.Args, "secret", "") {
+		sources++
 	}
-	return strings.TrimRight(string(data), "\n\r"), nil
+	if cliutil.FlagGiven(os.Args, "profile", "p") {
+		sources++
+	}
+	if sources > 1 {
+		return cliutil.Usage("--secret, --keyless and --profile are mutually exclusive")
+	}
+	if c.NArg() > 1 {
+		return cliutil.Usage("expected at most one TEXT argument")
+	}
+	return nil
 }
 
-func resolveSecret(c *cli.Context) (*ztier.Secret, error) {
+// resolveFormat resolves the effective obu format string, rejecting conflicting
+// scheme/encoding/--format combinations as usage errors. Only obu schemes
+// (upcbc, zdcbc) are valid here.
+func resolveFormat(c *cli.Context, cfg *Config) (string, error) {
+	schemeCount := cliutil.CountSet(c, "upcbc", "zdcbc")
+	encCount := cliutil.CountSet(c, "c32", "b32", "b64", "hex")
+
+	if c.String("format") != "" {
+		if schemeCount > 0 || encCount > 0 {
+			return "", cliutil.Usage("--format cannot be combined with scheme or encoding flags")
+		}
+		f, err := oboron.ParseFormat(c.String("format"))
+		if err != nil || !f.Scheme().IsObu() {
+			return "", cliutil.Usage("invalid format %q", c.String("format"))
+		}
+		return f.String(), nil
+	}
+	if schemeCount > 1 {
+		return "", cliutil.Usage("at most one scheme flag may be given")
+	}
+	if encCount > 1 {
+		return "", cliutil.Usage("at most one encoding flag may be given")
+	}
+	return string(schemeFromFlags(c, cfg)) + "." + string(encodingFromFlags(c, cfg)), nil
+}
+
+func schemeFromFlags(c *cli.Context, cfg *Config) oboron.Scheme {
+	switch {
+	case c.Bool("upcbc"):
+		return oboron.SchemeUpcbc
+	case c.Bool("zdcbc"):
+		return oboron.SchemeZdcbc
+	}
+	if cfg != nil && cfg.Scheme != "" {
+		return oboron.Scheme(cfg.Scheme)
+	}
+	return oboron.SchemeUpcbc // built-in default for obu (OBU.md §6)
+}
+
+func encodingFromFlags(c *cli.Context, cfg *Config) oboron.Encoding {
+	switch {
+	case c.Bool("c32"):
+		return oboron.EncodingC32
+	case c.Bool("b32"):
+		return oboron.EncodingB32
+	case c.Bool("b64"):
+		return oboron.EncodingB64
+	case c.Bool("hex"):
+		return oboron.EncodingHex
+	}
+	if cfg != nil && cfg.Encoding != "" {
+		if enc, err := oboron.ParseEncoding(cfg.Encoding); err == nil {
+			return enc
+		}
+	}
+	return oboron.EncodingC32 // built-in default (CLI.md §5)
+}
+
+func isTestSecret(sec *obu.Secret) bool {
+	return sec.Hex() == obu.HardcodedSecret().Hex()
+}
+
+// resolveSecret resolves the secret by the precedence keyless > --secret >
+// $OBORON_SECRET > profile/config (a convenience extension) > error (OBU.md
+// §6.1). The bool reports whether the fixed public test secret was supplied via
+// --secret or $OBORON_SECRET (for the §6.4 warning).
+func resolveSecret(c *cli.Context) (*obu.Secret, bool, error) {
 	if c.Bool("keyless") {
-		return ztier.HardcodedSecret(), nil
+		return obu.HardcodedSecret(), false, nil
 	}
-
-	// Secret flag / env var (EnvVars handles $OBORON_SECRET automatically)
-	if secretStr := c.String("secret"); secretStr != "" {
-		return ztier.SecretFromString(secretStr)
+	// --secret (any form) or a non-empty $OBORON_SECRET: urfave folds both into
+	// the "secret" value, with the flag taking precedence over the env var.
+	if c.IsSet("secret") {
+		sec, err := obu.SecretFromString(c.String("secret"))
+		if err != nil {
+			return nil, false, cliutil.Fail("invalid secret: %v", err)
+		}
+		return sec, isTestSecret(sec), nil
 	}
-
-	// Profile from flag or config
+	// An OBORON_SECRET that is set but empty is an invalid secret, not absent.
+	if v, ok := os.LookupEnv("OBORON_SECRET"); ok {
+		sec, err := obu.SecretFromString(v)
+		if err != nil {
+			return nil, false, cliutil.Fail("invalid secret: %v", err)
+		}
+		return sec, isTestSecret(sec), nil
+	}
+	// Convenience: the active/named profile (non-spec extension).
 	cfg, _ := loadConfig()
 	profileName := c.String("profile")
 	if profileName == "" && cfg != nil {
@@ -118,94 +228,37 @@ func resolveSecret(c *cli.Context) (*ztier.Secret, error) {
 	if profileName == "" {
 		profileName = "default"
 	}
-
 	prof, err := loadProfile(profileName)
 	if err != nil {
-		return nil, err
+		return nil, false, cliutil.Fail("no secret: pass --secret, set $OBORON_SECRET, or use --keyless")
 	}
-	return ztier.SecretFromString(prof.Secret)
-}
-
-func resolveScheme(c *cli.Context, cfg *Config) (oboron.Scheme, error) {
-	if c.String("format") != "" {
-		f, err := oboron.ParseFormat(c.String("format"))
-		if err != nil {
-			return "", err
-		}
-		return f.Scheme(), nil
+	sec, err := obu.SecretFromString(prof.Secret)
+	if err != nil {
+		return nil, false, cliutil.Fail("invalid secret in profile: %v", err)
 	}
-	if c.Bool("zrbcx") {
-		return oboron.SchemeZrbcx, nil
-	}
-	if c.Bool("legacy") {
-		return oboron.SchemeLegacy, nil
-	}
-	if cfg != nil && cfg.Scheme != "" {
-		return oboron.Scheme(cfg.Scheme), nil
-	}
-	return oboron.SchemeZrbcx, nil // spec default for obz
-}
-
-// formatString builds the codec format string. The legacy scheme is
-// suffix-free ("legacy"); every other scheme carries its encoding (e.g.
-// "zrbcx.c32").
-func formatString(scheme oboron.Scheme, enc oboron.Encoding) string {
-	if scheme == oboron.SchemeLegacy {
-		return string(scheme)
-	}
-	return string(scheme) + "." + string(enc)
-}
-
-func resolveEncoding(c *cli.Context, cfg *Config) oboron.Encoding {
-	if c.String("format") != "" {
-		f, err := oboron.ParseFormat(c.String("format"))
-		if err == nil {
-			return f.Encoding()
-		}
-	}
-	if c.Bool("c32") {
-		return oboron.EncodingC32
-	}
-	if c.Bool("b32") {
-		return oboron.EncodingB32
-	}
-	if c.Bool("b64") {
-		return oboron.EncodingB64
-	}
-	if c.Bool("hex") {
-		return oboron.EncodingHex
-	}
-	if cfg != nil && cfg.Encoding != "" {
-		enc, err := oboron.ParseEncoding(cfg.Encoding)
-		if err == nil {
-			return enc
-		}
-	}
-	return oboron.EncodingC32 // CLI.md §3 default
+	return sec, false, nil
 }
 
 // --- Commands ---
 
 func encCmd() *cli.Command {
-	flags := append(secretFlags(), append(schemeFlags(), append(encodingFlags(), formatFlag())...)...)
 	return &cli.Command{
 		Name:      "enc",
 		Aliases:   []string{"e"},
-		Usage:     "Encode a plaintext string using z-tier obfuscation",
+		Usage:     "Encode a plaintext string using an obu scheme",
 		ArgsUsage: "[TEXT]",
-		Flags:     flags,
+		Flags:     encDecFlags(),
 		Action:    encAction,
 	}
 }
 
 func decCmd() *cli.Command {
-	flags := append(secretFlags(), append(schemeFlags(), append(encodingFlags(), formatFlag())...)...)
 	return &cli.Command{
 		Name:      "dec",
 		Aliases:   []string{"d"},
-		Usage:     "Decode an obtext string using z-tier obfuscation",
+		Usage:     "Decode an obtext string using an obu scheme",
 		ArgsUsage: "[TEXT]",
-		Flags:     flags,
+		Flags:     encDecFlags(),
 		Action:    decAction,
 	}
 }
@@ -214,7 +267,7 @@ func initCmd() *cli.Command {
 	return &cli.Command{
 		Name:      "init",
 		Aliases:   []string{"i"},
-		Usage:     "Initialize obz configuration",
+		Usage:     "Initialize obu configuration",
 		ArgsUsage: "[NAME]",
 		Action:    initAction,
 	}
@@ -224,7 +277,7 @@ func configCmd() *cli.Command {
 	return &cli.Command{
 		Name:    "config",
 		Aliases: []string{"c"},
-		Usage:   "Manage obz configuration",
+		Usage:   "Manage obu configuration",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "keyless", Aliases: []string{"K"}, Usage: "Show keyless (public) config"},
 		},
@@ -279,7 +332,7 @@ func profileCmd() *cli.Command {
 				Usage:     "Create a new profile",
 				ArgsUsage: "<NAME>",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "secret", Aliases: []string{"s"}, Usage: "Secret (64 hex chars, or legacy 43-char base64); generates random if omitted"},
+					&cli.StringFlag{Name: "secret", Aliases: []string{"s"}, Usage: "Secret (64 hex chars); generates random if omitted"},
 				},
 				Action: profileCreateAction,
 			},
@@ -302,7 +355,7 @@ func profileCmd() *cli.Command {
 				Usage:     "Update the secret of an existing profile",
 				ArgsUsage: "<NAME>",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "secret", Aliases: []string{"s"}, Usage: "Secret (64 hex chars, or legacy 43-char base64)", Required: true},
+					&cli.StringFlag{Name: "secret", Aliases: []string{"s"}, Usage: "Secret (64 hex chars)", Required: true},
 				},
 				Action: profileSetAction,
 			},
@@ -314,12 +367,10 @@ func secretCmd() *cli.Command {
 	return &cli.Command{
 		Name:    "secret",
 		Aliases: []string{"s"},
-		Usage:   "Output the active obfuscation secret",
+		Usage:   "Output the active obu secret (64-char hex)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "profile", Aliases: []string{"p"}, Usage: "Profile name"},
 			&cli.BoolFlag{Name: "keyless", Aliases: []string{"K"}, Usage: "Output the public (hardcoded) secret"},
-			&cli.BoolFlag{Name: "hex", Aliases: []string{"x"}, Usage: "Output as hex (the default; explicit no-op)"},
-			&cli.BoolFlag{Name: "base64", Aliases: []string{"B"}, Usage: "Output as base64 (deprecated; conflicts with --hex)"},
 		},
 		Action: secretAction,
 	}
@@ -328,103 +379,88 @@ func secretCmd() *cli.Command {
 func secretgenCmd() *cli.Command {
 	return &cli.Command{
 		Name:   "secretgen",
-		Usage:  "Print a freshly generated random z-tier secret (64-char hex) and exit",
+		Usage:  "Print a freshly generated random obu secret (64-char hex) and exit",
 		Action: secretgenAction,
-	}
-}
-
-func completionCmd() *cli.Command {
-	return &cli.Command{
-		Name:  "completion",
-		Usage: "Generate shell completion script",
-		Subcommands: []*cli.Command{
-			{Name: "bash", Usage: "bash completion", Action: completionAction("bash")},
-			{Name: "zsh", Usage: "zsh completion", Action: completionAction("zsh")},
-			{Name: "fish", Usage: "fish completion", Action: completionAction("fish")},
-			{Name: "powershell", Usage: "powershell completion", Action: completionAction("powershell")},
-		},
 	}
 }
 
 // --- Action implementations ---
 
 func encAction(c *cli.Context) error {
-	text, err := readTextInput(c)
+	if err := validateOptions(c); err != nil {
+		return err
+	}
+	cfg, _ := loadConfig()
+	format, err := resolveFormat(c, cfg)
 	if err != nil {
 		return err
+	}
+	sec, testSecret, err := resolveSecret(c)
+	if err != nil {
+		return err
+	}
+	raw := c.Bool("raw")
+	text, err := cliutil.ReadInput(c, raw)
+	if err != nil {
+		return cliutil.Fail("failed to read input: %v", err)
 	}
 	if text == "" {
-		return fmt.Errorf("no input provided")
+		return cliutil.Fail("empty plaintext is rejected")
 	}
 
-	sec, err := resolveSecret(c)
+	om, err := obu.NewOmnibu(sec.Hex())
 	if err != nil {
-		return err
+		return cliutil.Fail("%v", err)
 	}
-
-	cfg, _ := loadConfig()
-	scheme, err := resolveScheme(c, cfg)
+	out, err := om.Enc(text, format)
 	if err != nil {
-		return err
+		return cliutil.Fail("%v", err)
 	}
-	enc := resolveEncoding(c, cfg)
-
-	ob, err := ztier.NewOmnibz(sec.Hex())
-	if err != nil {
-		return err
+	if testSecret {
+		fmt.Fprintln(os.Stderr, testSecretWarning)
 	}
-
-	result, err := ob.Enc(text, formatString(scheme, enc))
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(result)
+	cliutil.Output(out, raw)
 	return nil
 }
 
 func decAction(c *cli.Context) error {
-	text, err := readTextInput(c)
+	if err := validateOptions(c); err != nil {
+		return err
+	}
+	cfg, _ := loadConfig()
+	// The obtext carries no scheme marker, so dec uses the resolved format
+	// (defaulting to upcbc.c32); it never auto-detects.
+	format, err := resolveFormat(c, cfg)
 	if err != nil {
 		return err
+	}
+	sec, testSecret, err := resolveSecret(c)
+	if err != nil {
+		return err
+	}
+	raw := c.Bool("raw")
+	text, err := cliutil.ReadInput(c, raw)
+	if err != nil {
+		return cliutil.Fail("failed to read input: %v", err)
 	}
 	if text == "" {
-		return fmt.Errorf("no input provided")
+		return cliutil.DecFail()
 	}
 
-	sec, err := resolveSecret(c)
+	om, err := obu.NewOmnibu(sec.Hex())
 	if err != nil {
-		return err
+		return cliutil.Fail("%v", err)
 	}
-
-	ob, err := ztier.NewOmnibz(sec.Hex())
+	out, err := om.Dec(text, format)
 	if err != nil {
-		return err
+		// Uniform dec error (CLI.md §8); the §6.4 test-secret warning is
+		// suppressed here so it cannot leak on a failed dec.
+		return cliutil.DecFail()
 	}
-
-	cfg, _ := loadConfig()
-
-	// If a format or scheme flag is given, decode strictly; otherwise autodetect.
-	if c.String("format") != "" || c.Bool("zrbcx") || c.Bool("legacy") {
-		scheme, err := resolveScheme(c, cfg)
-		if err != nil {
-			return err
-		}
-		enc := resolveEncoding(c, cfg)
-		result, err := ob.Dec(text, formatString(scheme, enc))
-		if err != nil {
-			return err
-		}
-		fmt.Println(result)
-		return nil
+	if testSecret {
+		fmt.Fprintln(os.Stderr, testSecretWarning)
 	}
-
-	// No scheme specified: autodetect the scheme (and encoding) from the obtext.
-	result, err := ob.Autodec(text)
-	if err != nil {
-		return err
-	}
-	fmt.Println(result)
+	cliutil.Output(out, raw)
 	return nil
 }
 
@@ -443,7 +479,7 @@ func initAction(c *cli.Context) error {
 		return err
 	}
 
-	cfg := &Config{Profile: name, Scheme: "zrbcx"}
+	cfg := &Config{Profile: name, Scheme: "upcbc"}
 	if existing, err := loadConfig(); err == nil {
 		cfg.Scheme = existing.Scheme
 		cfg.Encoding = existing.Encoding
@@ -454,7 +490,7 @@ func initAction(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Printf("✓ Initialized obz configuration in %s\n", obzDir())
+	fmt.Printf("✓ Initialized obu configuration in %s\n", obuDir())
 	fmt.Printf("\nProfile %q:\n", name)
 	fmt.Printf("  Secret: %s\n", sec.Hex())
 	fmt.Println("\n⚠️  Keep this secret secure!")
@@ -463,7 +499,7 @@ func initAction(c *cli.Context) error {
 
 func configShowAction(c *cli.Context) error {
 	if c.Bool("keyless") {
-		sec := ztier.HardcodedSecret()
+		sec := obu.HardcodedSecret()
 		fmt.Println("Keyless (public) mode:")
 		fmt.Printf("  Secret: %s\n", sec.Hex())
 		return nil
@@ -471,7 +507,7 @@ func configShowAction(c *cli.Context) error {
 
 	cfg, err := loadConfig()
 	if err != nil {
-		return fmt.Errorf("no configuration found; run 'obz init' first")
+		return fmt.Errorf("no configuration found; run 'obu init' first")
 	}
 
 	fmt.Println("Current configuration:")
@@ -490,15 +526,15 @@ func configShowAction(c *cli.Context) error {
 func configSetAction(c *cli.Context) error {
 	cfg, err := loadConfig()
 	if err != nil {
-		cfg = &Config{Profile: "default", Scheme: "zrbcx"}
+		cfg = &Config{Profile: "default", Scheme: "upcbc"}
 	}
 
 	// Update scheme
 	switch {
-	case c.Bool("zrbcx"):
-		cfg.Scheme = "zrbcx"
-	case c.Bool("legacy"):
-		cfg.Scheme = "legacy"
+	case c.Bool("upcbc"):
+		cfg.Scheme = "upcbc"
+	case c.Bool("zdcbc"):
+		cfg.Scheme = "zdcbc"
 	}
 
 	// Update encoding
@@ -542,7 +578,7 @@ func profileShowAction(c *cli.Context) error {
 	} else {
 		cfg, err := loadConfig()
 		if err != nil {
-			return fmt.Errorf("no profile specified and no config found; run 'obz init'")
+			return fmt.Errorf("no profile specified and no config found; run 'obu init'")
 		}
 		name = cfg.Profile
 	}
@@ -568,7 +604,7 @@ func profileActivateAction(c *cli.Context) error {
 
 	cfg, err := loadConfig()
 	if err != nil {
-		cfg = &Config{Profile: name, Scheme: "zrbcx"}
+		cfg = &Config{Profile: name, Scheme: "upcbc"}
 	} else {
 		cfg.Profile = name
 	}
@@ -586,10 +622,10 @@ func profileCreateAction(c *cli.Context) error {
 	}
 	name := c.Args().First()
 
-	var sec *ztier.Secret
+	var sec *obu.Secret
 	if secretStr := c.String("secret"); secretStr != "" {
 		var err error
-		sec, err = ztier.SecretFromString(secretStr)
+		sec, err = obu.SecretFromString(secretStr)
 		if err != nil {
 			return fmt.Errorf("invalid secret: %w", err)
 		}
@@ -613,7 +649,7 @@ func profileDeleteAction(c *cli.Context) error {
 
 func profileRenameAction(c *cli.Context) error {
 	if c.NArg() < 2 {
-		return fmt.Errorf("usage: obz profile rename <OLD> <NEW>")
+		return fmt.Errorf("usage: obu profile rename <OLD> <NEW>")
 	}
 	return renameProfile(c.Args().Get(0), c.Args().Get(1))
 }
@@ -624,7 +660,7 @@ func profileSetAction(c *cli.Context) error {
 	}
 	name := c.Args().First()
 
-	sec, err := ztier.SecretFromString(c.String("secret"))
+	sec, err := obu.SecretFromString(c.String("secret"))
 	if err != nil {
 		return fmt.Errorf("invalid secret: %w", err)
 	}
@@ -636,29 +672,10 @@ func profileSetAction(c *cli.Context) error {
 	return nil
 }
 
-// secretOutputBase64 reports whether secret output should use the deprecated
-// base64 form. Hex is the canonical default (CLI §4.3); --base64 opts into the
-// legacy form and emits a deprecation notice to stderr.
-func secretOutputBase64(c *cli.Context) (bool, error) {
-	if !c.Bool("base64") {
-		return false, nil
-	}
-	if c.Bool("hex") {
-		return false, fmt.Errorf("--base64 conflicts with --hex")
-	}
-	fmt.Fprintln(os.Stderr, "warning: base64 secret output is deprecated; hex is the canonical format")
-	return true, nil
-}
-
 func secretAction(c *cli.Context) error {
-	useB64, err := secretOutputBase64(c)
-	if err != nil {
-		return err
-	}
-
-	var sec *ztier.Secret
+	var sec *obu.Secret
 	if c.Bool("keyless") {
-		sec = ztier.HardcodedSecret()
+		sec = obu.HardcodedSecret()
 	} else {
 		cfg, _ := loadConfig()
 		profileName := c.String("profile")
@@ -673,17 +690,14 @@ func secretAction(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		sec, err = ztier.SecretFromString(prof.Secret)
-		if err != nil {
-			return fmt.Errorf("invalid secret in profile: %w", err)
+		var perr error
+		sec, perr = obu.SecretFromString(prof.Secret)
+		if perr != nil {
+			return fmt.Errorf("invalid secret in profile: %w", perr)
 		}
 	}
 
-	if useB64 {
-		fmt.Println(sec.Base64())
-	} else {
-		fmt.Println(sec.Hex())
-	}
+	fmt.Println(sec.Hex())
 	return nil
 }
 
@@ -694,12 +708,4 @@ func secretgenAction(c *cli.Context) error {
 	}
 	fmt.Println(sec.Hex())
 	return nil
-}
-
-func completionAction(shell string) cli.ActionFunc {
-	return func(c *cli.Context) error {
-		fmt.Fprintf(os.Stderr, "Shell completion for %s is not yet implemented.\n", shell)
-		fmt.Fprintf(os.Stderr, "Please file an issue at https://gitlab.com/oboron/oboron-go\n")
-		return nil
-	}
 }

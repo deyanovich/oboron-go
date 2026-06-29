@@ -1,6 +1,6 @@
 # Local CI definition for oboron-go.
 #
-# Consumed by uvar-version (and, in turn, pub-master) to derive the
+# Consumed by cito-tag (and, in turn, cito-promote) to derive the
 # release git tag from the in-code version. The single source of truth
 # is the const in internal/version/version.go; the tag is the bare
 # semver "v{version}" required for a Go module at the repo root.
@@ -13,7 +13,7 @@ artifacts:
     version_pattern: 'const Version = "([^"]+)"'
     tag: "{version}"
 
-# pub-master's finalize tags the master commit from this artifact's
+# cito-promote's finalize tags the master commit from this artifact's
 # in-code version (and pushes the tag to gl + pub) before publishing.
 publish:
   version_artifact: module

@@ -13,31 +13,29 @@ func TestParseEncoding(t *testing.T) {
 		want    Encoding
 		wantErr bool
 	}{
-		// Short forms
+		// Canonical short codes — the only accepted forms (closed set, §1.2).
 		{"b32", EncodingB32, false},
 		{"c32", EncodingC32, false},
 		{"b64", EncodingB64, false},
 		{"hex", EncodingHex, false},
 
-		// Long forms
-		{"base32rfc", EncodingB32, false},
-		{"base32crockford", EncodingC32, false},
-		{"base64", EncodingB64, false},
-		{"hexadecimal", EncodingHex, false},
+		// Long forms / aliases are no longer accepted.
+		{"base32rfc", "", true},
+		{"base32crockford", "", true},
+		{"base64", "", true},
+		{"hexadecimal", "", true},
+		{"base32", "", true},
+		{"crockford", "", true},
+		{"base64url", "", true},
 
-		// Case-insensitive
-		{"B32", EncodingB32, false},
-		{"C32", EncodingC32, false},
-		{"B64", EncodingB64, false},
-		{"HEX", EncodingHex, false},
-		{"Base32RFC", EncodingB32, false},
+		// Uppercase is rejected — codes are lowercase ASCII, case-sensitive.
+		{"B32", "", true},
+		{"C32", "", true},
+		{"B64", "", true},
+		{"HEX", "", true},
+		{"Base32RFC", "", true},
 
-		// Aliases
-		{"base32", EncodingB32, false},
-		{"crockford", EncodingC32, false},
-		{"base64url", EncodingB64, false},
-
-		// Errors
+		// Other errors
 		{"", "", true},
 		{"unknown", "", true},
 		{"b33", "", true},
@@ -83,7 +81,7 @@ func TestEncodingString(t *testing.T) {
 
 // TestParseFormat verifies strict format-string parsing: there is no
 // library-level default encoding, so every scheme must carry an explicit
-// encoding suffix. The bare "legacy" is the sole suffix-free exception.
+// encoding suffix.
 func TestParseFormat(t *testing.T) {
 	tests := []struct {
 		input      string
@@ -91,37 +89,42 @@ func TestParseFormat(t *testing.T) {
 		wantEnc    Encoding
 		wantErr    bool
 	}{
-		// legacy: the one suffix-free form (its historical b32 encoding).
-		{"legacy", SchemeLegacy, EncodingB32, false},
-
-		// Bare scheme names (no encoding) now error — no default applies.
-		{"zrbcx", Scheme(""), Encoding(""), true},
-		{"aags", Scheme(""), Encoding(""), true},
-		{"aasv", Scheme(""), Encoding(""), true},
-		{"apgs", Scheme(""), Encoding(""), true},
-		{"apsv", Scheme(""), Encoding(""), true},
-		{"upbc", Scheme(""), Encoding(""), true},
+		// Bare scheme names (no encoding) error — no default applies.
+		{"zdcbc", Scheme(""), Encoding(""), true},
+		{"dgcmsiv", Scheme(""), Encoding(""), true},
+		{"dsiv", Scheme(""), Encoding(""), true},
+		{"pgcmsiv", Scheme(""), Encoding(""), true},
+		{"psiv", Scheme(""), Encoding(""), true},
+		{"upcbc", Scheme(""), Encoding(""), true},
 
 		// Scheme + encoding
-		{"aasv.c32", SchemeAasv, EncodingC32, false},
-		{"aasv.b32", SchemeAasv, EncodingB32, false},
-		{"aasv.b64", SchemeAasv, EncodingB64, false},
-		{"aasv.hex", SchemeAasv, EncodingHex, false},
-		{"zrbcx.hex", SchemeZrbcx, EncodingHex, false},
-		{"apgs.b64", SchemeApgs, EncodingB64, false},
+		{"dsiv.c32", SchemeDsiv, EncodingC32, false},
+		{"dsiv.b32", SchemeDsiv, EncodingB32, false},
+		{"dsiv.b64", SchemeDsiv, EncodingB64, false},
+		{"dsiv.hex", SchemeDsiv, EncodingHex, false},
+		{"zdcbc.hex", SchemeZdcbc, EncodingHex, false},
+		{"upcbc.c32", SchemeUpcbc, EncodingC32, false},
+		{"pgcmsiv.b64", SchemePgcmsiv, EncodingB64, false},
 
-		// Case-insensitive
-		{"AASV.C32", SchemeAasv, EncodingC32, false},
-		{"Aags.Hex", SchemeAags, EncodingHex, false},
+		// Uppercase identifiers are rejected — format ids are lowercase ASCII
+		// and case-sensitive (spec §1.1).
+		{"DSIV.C32", Scheme(""), Encoding(""), true},
+		{"Dgcmsiv.Hex", Scheme(""), Encoding(""), true},
 
 		// Errors
 		{"", Scheme(""), Encoding(""), true},
 		{"unknown", Scheme(""), Encoding(""), true},
-		{"aasv.unknown", Scheme(""), Encoding(""), true},
+		{"dsiv.unknown", Scheme(""), Encoding(""), true},
 		{"unknown.b32", Scheme(""), Encoding(""), true},
-		{"legacy.b32", Scheme(""), Encoding(""), true}, // legacy takes no suffix
-		{"legacy.c32", Scheme(""), Encoding(""), true},
-		{"zrbcx.", Scheme(""), Encoding(""), true},
+		{"legacy", Scheme(""), Encoding(""), true},      // legacy is dropped
+		{"legacy.b32", Scheme(""), Encoding(""), true},  // legacy is dropped
+		{"zdcbc.", Scheme(""), Encoding(""), true},      // empty encoding
+		{".c32", Scheme(""), Encoding(""), true},        // empty scheme
+		{"ob:dsiv.c32", Scheme(""), Encoding(""), true}, // ob: prefix rejected
+		{" dsiv.c32", Scheme(""), Encoding(""), true},   // leading whitespace
+		{"dsiv.c32 ", Scheme(""), Encoding(""), true},   // trailing whitespace
+		{"dsiv.c32.x", Scheme(""), Encoding(""), true},  // extra separator
+		{"dsiv.base32", Scheme(""), Encoding(""), true}, // long encoding alias
 	}
 
 	for _, tt := range tests {
@@ -143,20 +146,19 @@ func TestParseFormat(t *testing.T) {
 	}
 }
 
-// TestFormatString verifies Format.String() output. Non-legacy formats emit
-// the encoding suffix so they round-trip through ParseFormat; legacy is
-// suffix-free and renders as just "legacy".
+// TestFormatString verifies Format.String() output. Every format emits the
+// encoding suffix so it round-trips through ParseFormat.
 func TestFormatString(t *testing.T) {
 	tests := []struct {
 		format Format
 		want   string
 	}{
-		{NewFormat(SchemeAasv, EncodingB32), "aasv.b32"},
-		{NewFormat(SchemeAasv, EncodingC32), "aasv.c32"},
-		{NewFormat(SchemeAasv, EncodingB64), "aasv.b64"},
-		{NewFormat(SchemeAasv, EncodingHex), "aasv.hex"},
-		{NewFormat(SchemeLegacy, EncodingB32), "legacy"},
-		{NewFormat(SchemeUpbc, EncodingHex), "upbc.hex"},
+		{NewFormat(SchemeDsiv, EncodingB32), "dsiv.b32"},
+		{NewFormat(SchemeDsiv, EncodingC32), "dsiv.c32"},
+		{NewFormat(SchemeDsiv, EncodingB64), "dsiv.b64"},
+		{NewFormat(SchemeDsiv, EncodingHex), "dsiv.hex"},
+		{NewFormat(SchemeZdcbc, EncodingB32), "zdcbc.b32"},
+		{NewFormat(SchemeUpcbc, EncodingHex), "upcbc.hex"},
 	}
 
 	for _, tt := range tests {
@@ -173,13 +175,13 @@ func TestParseScheme(t *testing.T) {
 		want    Scheme
 		wantErr bool
 	}{
-		{"legacy", SchemeLegacy, false},
-		{"zrbcx", SchemeZrbcx, false},
-		{"aags", SchemeAags, false},
-		{"aasv", SchemeAasv, false},
-		{"apgs", SchemeApgs, false},
-		{"apsv", SchemeApsv, false},
-		{"upbc", SchemeUpbc, false},
+		{"zdcbc", SchemeZdcbc, false},
+		{"dgcmsiv", SchemeDgcmsiv, false},
+		{"dsiv", SchemeDsiv, false},
+		{"pgcmsiv", SchemePgcmsiv, false},
+		{"psiv", SchemePsiv, false},
+		{"upcbc", SchemeUpcbc, false},
+		{"legacy", "", true},
 		{"unknown", "", true},
 		{"", "", true},
 	}

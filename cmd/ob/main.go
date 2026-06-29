@@ -1,25 +1,31 @@
-// Command ob is the CLI for oboron's secure schemes (a-tier + u-tier):
-// it encrypts a UTF-8 string into compact, URL-safe obtext and decrypts
-// it back. See https://oboron.org/.
+// Command ob is the CLI for oboron's authenticated schemes: it encrypts a
+// UTF-8 string into compact, URL-safe obtext and decrypts it back. See
+// https://oboron.org/.
 package main
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"os"
-	"strings"
 
 	"github.com/urfave/cli/v2"
+	"oboron.org/go/internal/cliutil"
 	"oboron.org/go/internal/version"
 	"oboron.org/go/oboron"
 )
 
+// testKeyWarning is the §9 SHOULD warning emitted when the fixed public test
+// key is supplied via --key or $OBORON_KEY rather than --keyless. It is
+// suppressed on a failed dec so only the uniform dec error appears.
+const testKeyWarning = "warning: using the fixed public test key (INSECURE — testing only); pass --keyless instead"
+
 func main() {
+	versionLine := fmt.Sprintf("ob oboron-go %s protocol=1.0 cli=1.0", cliutil.VersionToken(version.Version))
+	cliutil.HandleVersionRequest(os.Args, versionLine)
+
 	app := &cli.App{
 		Name:                   "ob",
-		Usage:                  "Encrypt and encode values with oboron secure schemes",
-		Version:                version.Version,
+		Usage:                  "Encrypt and encode values with oboron authenticated schemes",
+		HideVersion:            true,
 		UseShortOptionHandling: true,
 		Commands: []*cli.Command{
 			encCmd(),
@@ -29,13 +35,10 @@ func main() {
 			profileCmd(),
 			keyCmd(),
 			keygenCmd(),
-			completionCmd(),
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
-	}
+	os.Exit(cliutil.Run(app, os.Args))
 }
 
 // --- Shared flag builders ---
@@ -45,7 +48,7 @@ func keyFlags() []cli.Flag {
 		&cli.StringFlag{
 			Name:    "key",
 			Aliases: []string{"k"},
-			Usage:   "Encryption key (128 hex chars, 512-bit; or legacy 86-char base64); conflicts with --profile/--keyless",
+			Usage:   "Encryption key (128 hex chars, 512-bit); conflicts with --profile/--keyless",
 			EnvVars: []string{"OBORON_KEY"},
 		},
 		&cli.StringFlag{
@@ -63,11 +66,10 @@ func keyFlags() []cli.Flag {
 
 func schemeFlags() []cli.Flag {
 	return []cli.Flag{
-		&cli.BoolFlag{Name: "aasv", Aliases: []string{"s"}, Usage: "Use aasv scheme (deterministic AES-SIV)"},
-		&cli.BoolFlag{Name: "apsv", Aliases: []string{"S"}, Usage: "Use apsv scheme (probabilistic AES-SIV)"},
-		&cli.BoolFlag{Name: "aags", Aliases: []string{"g"}, Usage: "Use aags scheme (deterministic AES-GCM-SIV)"},
-		&cli.BoolFlag{Name: "apgs", Aliases: []string{"G"}, Usage: "Use apgs scheme (probabilistic AES-GCM-SIV)"},
-		&cli.BoolFlag{Name: "upbc", Aliases: []string{"u"}, Usage: "Use upbc scheme (probabilistic AES-256-CBC)"},
+		&cli.BoolFlag{Name: "dsiv", Aliases: []string{"s"}, Usage: "Use dsiv scheme (deterministic AES-SIV)"},
+		&cli.BoolFlag{Name: "psiv", Aliases: []string{"S"}, Usage: "Use psiv scheme (probabilistic AES-SIV)"},
+		&cli.BoolFlag{Name: "dgcmsiv", Aliases: []string{"g"}, Usage: "Use dgcmsiv scheme (deterministic AES-GCM-SIV)"},
+		&cli.BoolFlag{Name: "pgcmsiv", Aliases: []string{"G"}, Usage: "Use pgcmsiv scheme (probabilistic AES-GCM-SIV)"},
 	}
 }
 
@@ -84,34 +86,144 @@ func formatFlag() cli.Flag {
 	return &cli.StringFlag{
 		Name:    "format",
 		Aliases: []string{"f"},
-		Usage:   `Format string e.g. "aasv.b64"; cannot combine with scheme/encoding flags`,
+		Usage:   `Format string e.g. "dsiv.b64"; cannot combine with scheme/encoding flags`,
 	}
+}
+
+func rawFlag() cli.Flag {
+	return &cli.BoolFlag{
+		Name:    "raw",
+		Aliases: []string{"0"},
+		Usage:   "Disable line framing: keep stdin's trailing newline and don't append one to stdout",
+	}
+}
+
+// encDecFlags is the full flag set shared by enc and dec.
+func encDecFlags() []cli.Flag {
+	flags := keyFlags()
+	flags = append(flags, schemeFlags()...)
+	flags = append(flags, encodingFlags()...)
+	flags = append(flags, formatFlag(), rawFlag())
+	return flags
 }
 
 // --- Helpers ---
 
-func readTextInput(c *cli.Context) (string, error) {
-	if c.NArg() > 0 {
-		return strings.Join(c.Args().Slice(), " "), nil
+// validateOptions performs the usage-error (exit-2) checks that must precede any
+// key lookup or operation: at most one explicit key source, and at most one TEXT
+// argument (CLI.md §4.1, §6).
+func validateOptions(c *cli.Context) error {
+	sources := 0
+	if c.Bool("keyless") {
+		sources++
 	}
-	data, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return "", fmt.Errorf("failed to read stdin: %w", err)
+	if cliutil.FlagGiven(os.Args, "key", "k") {
+		sources++
 	}
-	return strings.TrimRight(string(data), "\n\r"), nil
+	if cliutil.FlagGiven(os.Args, "profile", "p") {
+		sources++
+	}
+	if sources > 1 {
+		return cliutil.Usage("--key, --keyless and --profile are mutually exclusive")
+	}
+	if c.NArg() > 1 {
+		return cliutil.Usage("expected at most one TEXT argument")
+	}
+	return nil
 }
 
-func resolveMasterKey(c *cli.Context) (*oboron.MasterKey, error) {
+// resolveFormat resolves the effective format string, rejecting conflicting
+// scheme/encoding/--format combinations as usage errors (CLI.md §4.1, §5). obu
+// schemes are not valid here.
+func resolveFormat(c *cli.Context, cfg *Config) (string, error) {
+	schemeCount := cliutil.CountSet(c, "dsiv", "psiv", "dgcmsiv", "pgcmsiv")
+	encCount := cliutil.CountSet(c, "c32", "b32", "b64", "hex")
+
+	if c.String("format") != "" {
+		if schemeCount > 0 || encCount > 0 {
+			return "", cliutil.Usage("--format cannot be combined with scheme or encoding flags")
+		}
+		f, err := oboron.ParseFormat(c.String("format"))
+		if err != nil || f.Scheme().IsObu() {
+			return "", cliutil.Usage("invalid format %q", c.String("format"))
+		}
+		return f.String(), nil
+	}
+	if schemeCount > 1 {
+		return "", cliutil.Usage("at most one scheme flag may be given")
+	}
+	if encCount > 1 {
+		return "", cliutil.Usage("at most one encoding flag may be given")
+	}
+	return string(schemeFromFlags(c, cfg)) + "." + string(encodingFromFlags(c, cfg)), nil
+}
+
+func schemeFromFlags(c *cli.Context, cfg *Config) oboron.Scheme {
+	switch {
+	case c.Bool("dsiv"):
+		return oboron.SchemeDsiv
+	case c.Bool("psiv"):
+		return oboron.SchemePsiv
+	case c.Bool("dgcmsiv"):
+		return oboron.SchemeDgcmsiv
+	case c.Bool("pgcmsiv"):
+		return oboron.SchemePgcmsiv
+	}
+	if cfg != nil && cfg.Scheme != "" {
+		return oboron.Scheme(cfg.Scheme)
+	}
+	return oboron.SchemeDsiv // built-in default (CLI.md §5)
+}
+
+func encodingFromFlags(c *cli.Context, cfg *Config) oboron.Encoding {
+	switch {
+	case c.Bool("c32"):
+		return oboron.EncodingC32
+	case c.Bool("b32"):
+		return oboron.EncodingB32
+	case c.Bool("b64"):
+		return oboron.EncodingB64
+	case c.Bool("hex"):
+		return oboron.EncodingHex
+	}
+	if cfg != nil && cfg.Encoding != "" {
+		if enc, err := oboron.ParseEncoding(cfg.Encoding); err == nil {
+			return enc
+		}
+	}
+	return oboron.EncodingC32 // built-in default (CLI.md §5)
+}
+
+func isTestKey(mk *oboron.MasterKey) bool {
+	return mk.Hex() == oboron.HardcodedMasterKey().Hex()
+}
+
+// resolveMasterKey resolves the key by the spec precedence keyless > --key >
+// $OBORON_KEY > profile/config (a convenience extension) > error (CLI.md §6).
+// The bool reports whether the fixed public test key was supplied via --key or
+// $OBORON_KEY (for the §9 warning).
+func resolveMasterKey(c *cli.Context) (*oboron.MasterKey, bool, error) {
 	if c.Bool("keyless") {
-		return oboron.HardcodedMasterKey(), nil
+		return oboron.HardcodedMasterKey(), false, nil
 	}
-
-	// Key flag / env var (EnvVars handles $OBORON_KEY automatically)
-	if keyStr := c.String("key"); keyStr != "" {
-		return oboron.MasterKeyFromString(keyStr)
+	// --key (any form) or a non-empty $OBORON_KEY: urfave folds both into the
+	// "key" value, with the flag taking precedence over the env var.
+	if c.IsSet("key") {
+		mk, err := oboron.MasterKeyFromString(c.String("key"))
+		if err != nil {
+			return nil, false, cliutil.Fail("invalid key: %v", err)
+		}
+		return mk, isTestKey(mk), nil
 	}
-
-	// Profile from flag or config
+	// An OBORON_KEY that is set but empty is an invalid key, not an absent one.
+	if v, ok := os.LookupEnv("OBORON_KEY"); ok {
+		mk, err := oboron.MasterKeyFromString(v)
+		if err != nil {
+			return nil, false, cliutil.Fail("invalid key: %v", err)
+		}
+		return mk, isTestKey(mk), nil
+	}
+	// Convenience: the active/named profile (non-spec extension).
 	cfg, _ := loadConfig()
 	profileName := c.String("profile")
 	if profileName == "" && cfg != nil {
@@ -120,93 +232,37 @@ func resolveMasterKey(c *cli.Context) (*oboron.MasterKey, error) {
 	if profileName == "" {
 		profileName = "default"
 	}
-
 	prof, err := loadProfile(profileName)
 	if err != nil {
-		return nil, err
+		return nil, false, cliutil.Fail("no key: pass --key, set $OBORON_KEY, or use --keyless")
 	}
-	return oboron.MasterKeyFromString(prof.Key)
-}
-
-func resolveScheme(c *cli.Context, cfg *Config) (oboron.Scheme, error) {
-	if c.String("format") != "" {
-		f, err := oboron.ParseFormat(c.String("format"))
-		if err != nil {
-			return "", err
-		}
-		return f.Scheme(), nil
+	mk, err := oboron.MasterKeyFromString(prof.Key)
+	if err != nil {
+		return nil, false, cliutil.Fail("invalid key in profile: %v", err)
 	}
-	if c.Bool("aasv") {
-		return oboron.SchemeAasv, nil
-	}
-	if c.Bool("apsv") {
-		return oboron.SchemeApsv, nil
-	}
-	if c.Bool("aags") {
-		return oboron.SchemeAags, nil
-	}
-	if c.Bool("apgs") {
-		return oboron.SchemeApgs, nil
-	}
-	if c.Bool("upbc") {
-		return oboron.SchemeUpbc, nil
-	}
-	if cfg != nil && cfg.Scheme != "" {
-		return oboron.Scheme(cfg.Scheme), nil
-	}
-	return oboron.SchemeAasv, nil // spec default
-}
-
-func resolveEncoding(c *cli.Context, cfg *Config) oboron.Encoding {
-	if c.String("format") != "" {
-		f, err := oboron.ParseFormat(c.String("format"))
-		if err == nil {
-			return f.Encoding()
-		}
-	}
-	if c.Bool("c32") {
-		return oboron.EncodingC32
-	}
-	if c.Bool("b32") {
-		return oboron.EncodingB32
-	}
-	if c.Bool("b64") {
-		return oboron.EncodingB64
-	}
-	if c.Bool("hex") {
-		return oboron.EncodingHex
-	}
-	if cfg != nil && cfg.Encoding != "" {
-		enc, err := oboron.ParseEncoding(cfg.Encoding)
-		if err == nil {
-			return enc
-		}
-	}
-	return oboron.EncodingC32 // CLI.md §3 default
+	return mk, false, nil
 }
 
 // --- Commands ---
 
 func encCmd() *cli.Command {
-	flags := append(keyFlags(), append(schemeFlags(), append(encodingFlags(), formatFlag())...)...)
 	return &cli.Command{
 		Name:      "enc",
 		Aliases:   []string{"e"},
 		Usage:     "Encrypt+encode a plaintext string",
 		ArgsUsage: "[TEXT]",
-		Flags:     flags,
+		Flags:     encDecFlags(),
 		Action:    encAction,
 	}
 }
 
 func decCmd() *cli.Command {
-	flags := append(keyFlags(), append(schemeFlags(), append(encodingFlags(), formatFlag())...)...)
 	return &cli.Command{
 		Name:      "dec",
 		Aliases:   []string{"d"},
 		Usage:     "Decode+decrypt an obtext string",
 		ArgsUsage: "[TEXT]",
-		Flags:     flags,
+		Flags:     encDecFlags(),
 		Action:    decAction,
 	}
 }
@@ -280,7 +336,7 @@ func profileCmd() *cli.Command {
 				Usage:     "Create a new profile",
 				ArgsUsage: "<NAME>",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: "Key (128 hex chars, or legacy 86-char base64); generates random if omitted"},
+					&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: "Key (128 hex chars); generates random if omitted"},
 				},
 				Action: profileCreateAction,
 			},
@@ -303,7 +359,7 @@ func profileCmd() *cli.Command {
 				Usage:     "Update the key of an existing profile",
 				ArgsUsage: "<NAME>",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: "Key (128 hex chars, or legacy 86-char base64)", Required: true},
+					&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: "Key (128 hex chars)", Required: true},
 				},
 				Action: profileSetAction,
 			},
@@ -315,12 +371,10 @@ func keyCmd() *cli.Command {
 	return &cli.Command{
 		Name:    "key",
 		Aliases: []string{"k"},
-		Usage:   "Output the active encryption key",
+		Usage:   "Output the active encryption key (128-char hex)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "profile", Aliases: []string{"p"}, Usage: "Profile name"},
 			&cli.BoolFlag{Name: "keyless", Aliases: []string{"K"}, Usage: "Output the public (hardcoded) key"},
-			&cli.BoolFlag{Name: "hex", Aliases: []string{"x"}, Usage: "Output as hex (the default; explicit no-op)"},
-			&cli.BoolFlag{Name: "base64", Aliases: []string{"B"}, Usage: "Output as base64 (deprecated; conflicts with --hex)"},
 		},
 		Action: keyAction,
 	}
@@ -334,98 +388,84 @@ func keygenCmd() *cli.Command {
 	}
 }
 
-func completionCmd() *cli.Command {
-	return &cli.Command{
-		Name:  "completion",
-		Usage: "Generate shell completion script",
-		Subcommands: []*cli.Command{
-			{Name: "bash", Usage: "bash completion", Action: completionAction("bash")},
-			{Name: "zsh", Usage: "zsh completion", Action: completionAction("zsh")},
-			{Name: "fish", Usage: "fish completion", Action: completionAction("fish")},
-			{Name: "powershell", Usage: "powershell completion", Action: completionAction("powershell")},
-		},
-	}
-}
-
 // --- Action implementations ---
 
 func encAction(c *cli.Context) error {
-	text, err := readTextInput(c)
+	if err := validateOptions(c); err != nil {
+		return err
+	}
+	cfg, _ := loadConfig()
+	format, err := resolveFormat(c, cfg)
 	if err != nil {
 		return err
+	}
+	mk, testKey, err := resolveMasterKey(c)
+	if err != nil {
+		return err
+	}
+	raw := c.Bool("raw")
+	text, err := cliutil.ReadInput(c, raw)
+	if err != nil {
+		return cliutil.Fail("failed to read input: %v", err)
 	}
 	if text == "" {
-		return fmt.Errorf("no input provided")
+		return cliutil.Fail("empty plaintext is rejected")
 	}
 
-	mk, err := resolveMasterKey(c)
+	om, err := oboron.NewOmnib(mk.Hex())
 	if err != nil {
-		return err
+		return cliutil.Fail("%v", err)
 	}
-
-	cfg, _ := loadConfig()
-	scheme, err := resolveScheme(c, cfg)
+	out, err := om.Enc(text, format)
 	if err != nil {
-		return err
+		return cliutil.Fail("%v", err)
 	}
-	enc := resolveEncoding(c, cfg)
-
-	ob, err := oboron.NewOmnib(mk.Hex())
-	if err != nil {
-		return err
+	if testKey {
+		fmt.Fprintln(os.Stderr, testKeyWarning)
 	}
-
-	result, err := ob.Enc(text, fmt.Sprintf("%s.%s", scheme, enc))
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(result)
+	cliutil.Output(out, raw)
 	return nil
 }
 
 func decAction(c *cli.Context) error {
-	text, err := readTextInput(c)
+	if err := validateOptions(c); err != nil {
+		return err
+	}
+	cfg, _ := loadConfig()
+	// The obtext carries no scheme marker, so dec uses the resolved format
+	// (defaulting to dsiv.c32); it never auto-detects (CLI.md §4.2).
+	format, err := resolveFormat(c, cfg)
 	if err != nil {
 		return err
+	}
+	mk, testKey, err := resolveMasterKey(c)
+	if err != nil {
+		return err
+	}
+	raw := c.Bool("raw")
+	text, err := cliutil.ReadInput(c, raw)
+	if err != nil {
+		return cliutil.Fail("failed to read input: %v", err)
 	}
 	if text == "" {
-		return fmt.Errorf("no input provided")
+		// An empty obtext is a dec failure; report via the uniform message.
+		return cliutil.DecFail()
 	}
 
-	mk, err := resolveMasterKey(c)
+	om, err := oboron.NewOmnib(mk.Hex())
 	if err != nil {
-		return err
+		return cliutil.Fail("%v", err)
 	}
-
-	ob, err := oboron.NewOmnib(mk.Hex())
+	out, err := om.Dec(text, format)
 	if err != nil {
-		return err
+		// Every dec failure shares one uniform message (CLI.md §8); the §9
+		// test-key warning is suppressed here so it cannot leak.
+		return cliutil.DecFail()
 	}
-
-	cfg, _ := loadConfig()
-
-	// If a format or scheme flag is given, decode strictly; otherwise autodetect.
-	if c.String("format") != "" || c.Bool("aasv") || c.Bool("apsv") || c.Bool("aags") || c.Bool("apgs") || c.Bool("upbc") {
-		scheme, err := resolveScheme(c, cfg)
-		if err != nil {
-			return err
-		}
-		enc := resolveEncoding(c, cfg)
-		result, err := ob.Dec(text, fmt.Sprintf("%s.%s", scheme, enc))
-		if err != nil {
-			return err
-		}
-		fmt.Println(result)
-		return nil
+	if testKey {
+		fmt.Fprintln(os.Stderr, testKeyWarning)
 	}
-
-	// No scheme specified: autodetect the scheme (and encoding) from the obtext.
-	result, err := ob.Autodec(text)
-	if err != nil {
-		return err
-	}
-	fmt.Println(result)
+	cliutil.Output(out, raw)
 	return nil
 }
 
@@ -444,7 +484,7 @@ func initAction(c *cli.Context) error {
 		return err
 	}
 
-	cfg := &Config{Profile: name, Scheme: "aasv"}
+	cfg := &Config{Profile: name, Scheme: "dsiv"}
 	if existing, err := loadConfig(); err == nil {
 		cfg.Scheme = existing.Scheme
 		cfg.Encoding = existing.Encoding
@@ -491,21 +531,19 @@ func configShowAction(c *cli.Context) error {
 func configSetAction(c *cli.Context) error {
 	cfg, err := loadConfig()
 	if err != nil {
-		cfg = &Config{Profile: "default", Scheme: "aasv"}
+		cfg = &Config{Profile: "default", Scheme: "dsiv"}
 	}
 
 	// Update scheme
 	switch {
-	case c.Bool("aasv"):
-		cfg.Scheme = "aasv"
-	case c.Bool("apsv"):
-		cfg.Scheme = "apsv"
-	case c.Bool("aags"):
-		cfg.Scheme = "aags"
-	case c.Bool("apgs"):
-		cfg.Scheme = "apgs"
-	case c.Bool("upbc"):
-		cfg.Scheme = "upbc"
+	case c.Bool("dsiv"):
+		cfg.Scheme = "dsiv"
+	case c.Bool("psiv"):
+		cfg.Scheme = "psiv"
+	case c.Bool("dgcmsiv"):
+		cfg.Scheme = "dgcmsiv"
+	case c.Bool("pgcmsiv"):
+		cfg.Scheme = "pgcmsiv"
 	}
 
 	// Update encoding
@@ -575,7 +613,7 @@ func profileActivateAction(c *cli.Context) error {
 
 	cfg, err := loadConfig()
 	if err != nil {
-		cfg = &Config{Profile: name, Scheme: "aasv"}
+		cfg = &Config{Profile: name, Scheme: "dsiv"}
 	} else {
 		cfg.Profile = name
 	}
@@ -643,26 +681,7 @@ func profileSetAction(c *cli.Context) error {
 	return nil
 }
 
-// keyOutputBase64 reports whether key output should use the deprecated base64
-// form. Hex is the canonical default (CLI §4.3); --base64 opts into the legacy
-// form and emits a deprecation notice to stderr.
-func keyOutputBase64(c *cli.Context) (bool, error) {
-	if !c.Bool("base64") {
-		return false, nil
-	}
-	if c.Bool("hex") {
-		return false, fmt.Errorf("--base64 conflicts with --hex")
-	}
-	fmt.Fprintln(os.Stderr, "warning: base64 key output is deprecated; hex is the canonical format")
-	return true, nil
-}
-
 func keyAction(c *cli.Context) error {
-	useB64, err := keyOutputBase64(c)
-	if err != nil {
-		return err
-	}
-
 	var mk *oboron.MasterKey
 	if c.Bool("keyless") {
 		mk = oboron.HardcodedMasterKey()
@@ -680,17 +699,14 @@ func keyAction(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		mk, err = oboron.MasterKeyFromString(prof.Key)
-		if err != nil {
-			return fmt.Errorf("invalid key in profile: %w", err)
+		var perr error
+		mk, perr = oboron.MasterKeyFromString(prof.Key)
+		if perr != nil {
+			return fmt.Errorf("invalid key in profile: %w", perr)
 		}
 	}
 
-	if useB64 {
-		fmt.Println(mk.Base64())
-	} else {
-		fmt.Println(mk.Hex())
-	}
+	fmt.Println(mk.Hex())
 	return nil
 }
 
@@ -701,12 +717,4 @@ func keygenAction(c *cli.Context) error {
 	}
 	fmt.Println(mk.Hex())
 	return nil
-}
-
-func completionAction(shell string) cli.ActionFunc {
-	return func(c *cli.Context) error {
-		fmt.Fprintf(os.Stderr, "Shell completion for %s is not yet implemented.\n", shell)
-		fmt.Fprintf(os.Stderr, "Please file an issue at https://gitlab.com/oboron/oboron-go\n")
-		return nil
-	}
 }

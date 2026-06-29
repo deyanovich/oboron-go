@@ -3,6 +3,7 @@ package textcodec
 import (
 	"bytes"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -31,21 +32,51 @@ func TestRoundtrip(t *testing.T) {
 	}
 }
 
-func TestCrockfordNormalize(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"abc123", "ABC123"},
-		{"Io1l", "1011"},     // I→1, o→0, l→1
-		{"OoIiLl", "001111"}, // O→0, o→0, I→1, i→1, L→1, l→1
-		{"HELLO", "HE110"},   // L→1, O→0 (Crockford mapping)
-		{"hello", "HE110"},   // same in lowercase
-		{"0123456789", "0123456789"},
+// TestStrictDecodeRejectsNonCanonical verifies that DecodeFromText is a strict
+// canonical decoder (spec §1.2 "Decoding"): it accepts only the unique
+// canonical encoding and rejects wrong case, Crockford I/L/O/U aliases, odd hex
+// length, and impossible base32 lengths.
+func TestStrictDecodeRejectsNonCanonical(t *testing.T) {
+	data := []byte{0xDE, 0xAD, 0xBE, 0xEF, 0x12}
+
+	// Wrong case is non-canonical for the case-fixed alphabets.
+	c32 := EncodeToText(data, C32)
+	if _, err := DecodeFromText(strings.ToUpper(c32), C32); err == nil {
+		t.Errorf("uppercase c32 %q accepted, want rejection", strings.ToUpper(c32))
 	}
-	for _, tt := range tests {
-		if got := crockfordNormalize(tt.input); got != tt.want {
-			t.Errorf("crockfordNormalize(%q) = %q, want %q", tt.input, got, tt.want)
+	b32 := EncodeToText(data, B32)
+	if _, err := DecodeFromText(strings.ToLower(b32), B32); err == nil {
+		t.Errorf("lowercase b32 %q accepted, want rejection", strings.ToLower(b32))
+	}
+	hx := EncodeToText(data, Hex)
+	if _, err := DecodeFromText(strings.ToUpper(hx), Hex); err == nil {
+		t.Errorf("uppercase hex %q accepted, want rejection", strings.ToUpper(hx))
+	}
+
+	explicit := []struct {
+		name string
+		enc  Encoding
+		in   string
+	}{
+		{"c32 alias i", C32, "aaaaaaai"}, // i excluded from the Crockford alphabet
+		{"c32 alias o", C32, "aaaaaaao"}, // o excluded
+		{"c32 alias l", C32, "aaaaaaal"}, // l excluded
+		{"c32 alias u", C32, "aaaaaaau"}, // u excluded
+		{"hex odd length", Hex, "abc"},   // hex length must be even
+	}
+	for _, tc := range explicit {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := DecodeFromText(tc.in, tc.enc); err == nil {
+				t.Errorf("DecodeFromText(%q, %s) accepted, want rejection", tc.in, tc.enc)
+			}
+		})
+	}
+
+	// Canonical forms must still decode cleanly.
+	for _, enc := range []Encoding{B32, C32, B64, Hex} {
+		s := EncodeToText(data, enc)
+		if got, err := DecodeFromText(s, enc); err != nil || !bytes.Equal(got, data) {
+			t.Errorf("canonical %s %q: got %x err %v, want %x", enc, s, got, err, data)
 		}
 	}
 }

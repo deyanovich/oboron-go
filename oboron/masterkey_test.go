@@ -198,11 +198,10 @@ func TestMasterKeySecureSchemes(t *testing.T) {
 		format string
 		scheme Scheme
 	}{
-		{"aags.b32", SchemeAags},
-		{"aasv.b32", SchemeAasv},
-		{"apgs.b32", SchemeApgs},
-		{"apsv.b32", SchemeApsv},
-		{"upbc.b32", SchemeUpbc},
+		{"dgcmsiv.b32", SchemeDgcmsiv},
+		{"dsiv.b32", SchemeDsiv},
+		{"pgcmsiv.b32", SchemePgcmsiv},
+		{"psiv.b32", SchemePsiv},
 	}
 
 	for _, tt := range tests {
@@ -233,11 +232,11 @@ func TestMasterKeySecureSchemes(t *testing.T) {
 // TestMasterKeyConstructionParity verifies the hex-string and raw-bytes
 // constructors (spec §4.2) produce identical output.
 func TestMasterKeyConstructionParity(t *testing.T) {
-	fromStr, err := New("aags.b32", HardcodedMasterKey().Hex())
+	fromStr, err := New("dgcmsiv.b32", HardcodedMasterKey().Hex())
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	fromBytes, err := NewObFromBytes("aags.b32", HardcodedKey)
+	fromBytes, err := NewObFromBytes("dgcmsiv.b32", HardcodedKey)
 	if err != nil {
 		t.Fatalf("NewObFromBytes failed: %v", err)
 	}
@@ -247,18 +246,6 @@ func TestMasterKeyConstructionParity(t *testing.T) {
 	bytesEncoded, _ := fromBytes.Enc(input)
 	if strEncoded != bytesEncoded {
 		t.Errorf("hex-key encode %q != raw-bytes encode %q", strEncoded, bytesEncoded)
-	}
-}
-
-func TestTierConstants(t *testing.T) {
-	if TierA != 1 {
-		t.Errorf("TierA = %d, want 1", TierA)
-	}
-	if TierU != 2 {
-		t.Errorf("TierU = %d, want 2", TierU)
-	}
-	if TierZ != 6 {
-		t.Errorf("TierZ = %d, want 6", TierZ)
 	}
 }
 

@@ -4,10 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	mrand "math/rand/v2"
 
 	"oboron.org/go/oboron"
-	"oboron.org/go/oboron/ztier"
+	"oboron.org/go/obu"
 )
 
 const (
@@ -16,19 +15,10 @@ const (
 )
 
 type vector struct {
-	Scheme string `json:"scheme"`
-	Key    string `json:"key"`
-	In     string `json:"in"`
-	Out    string `json:"out"`
-}
-
-func randomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !@#$%^&*()_+-=[]{}|;:,.<>?/"
-	result := make([]byte, length)
-	for i := range result {
-		result[i] = charset[mrand.IntN(len(charset))]
-	}
-	return string(result)
+	Format    string `json:"format"`
+	Key       string `json:"key"`
+	Plaintext string `json:"plaintext"`
+	Obtext    string `json:"obtext"`
 }
 
 func deterministicStr(length int) string {
@@ -52,7 +42,9 @@ func generateRandomMasterKey() (*oboron.MasterKey, error) {
 }
 
 func main() {
-	schemes := []oboron.Scheme{oboron.SchemeAasv, oboron.SchemeZrbcx}
+	// dsiv (authenticated) and zdcbc (obu) are the deterministic schemes used
+	// for self-test generation.
+	schemes := []oboron.Scheme{oboron.SchemeDsiv, oboron.SchemeZdcbc}
 	for _, scheme := range schemes {
 		for inputLen := minLength; inputLen <= maxLength; inputLen++ {
 			mk, err := generateRandomMasterKey()
@@ -75,26 +67,26 @@ func genVector(mk *oboron.MasterKey, scheme oboron.Scheme, inputLen int) {
 	}
 
 	vec := vector{
-		Scheme: string(scheme),
-		Key:    mk.Base64(),
-		In:     s,
-		Out:    out,
+		Format:    string(scheme) + ".b32",
+		Key:       mk.Hex(),
+		Plaintext: s,
+		Obtext:    out,
 	}
 	j, _ := json.Marshal(vec)
 	fmt.Println(string(j))
 }
 
-// encode produces the b32 obtext for a scheme. The a/u tier uses Omnib (master
-// key); the z tier uses Omnibz with the secret derived from the master key's
-// first 32 bytes — byte-identical to the pre-split unified codec.
+// encode produces the b32 obtext for a scheme. The authenticated tier uses
+// Omnib (master key); the obu tier uses Omnibu with the secret derived from the
+// master key's first 32 bytes.
 func encode(mk *oboron.MasterKey, scheme oboron.Scheme, s string) (string, error) {
 	format := string(scheme) + ".b32"
-	if scheme.IsZTier() {
-		sec, err := ztier.SecretFromMasterKey(mk)
+	if scheme.IsObu() {
+		sec, err := obu.SecretFromMasterKey(mk)
 		if err != nil {
 			return "", err
 		}
-		ob, err := ztier.NewOmnibz(sec.Hex())
+		ob, err := obu.NewOmnibu(sec.Hex())
 		if err != nil {
 			return "", err
 		}

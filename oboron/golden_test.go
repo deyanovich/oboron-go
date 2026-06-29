@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-// rsVector represents a single a/u-tier test vector from oboron-rs.
-// Fields: format (e.g. "aags.c32"), plaintext, obtext.
+// rsVector represents a single authenticated test vector from oboron-rs.
+// Fields: format (e.g. "dgcmsiv.c32"), plaintext, obtext.
 type rsVector struct {
 	Format    string `json:"format"`
 	Plaintext string `json:"plaintext"`
@@ -19,8 +19,7 @@ type rsVector struct {
 
 // rsMeta represents the metadata line in a vector file.
 type rsMeta struct {
-	Type   string `json:"type"`
-	Secret string `json:"secret"`
+	Type string `json:"type"`
 }
 
 // rsHardcodedKey is the shared HARDCODED_KEY_BYTES (identical across Go and
@@ -67,16 +66,25 @@ func loadRsVectors(t *testing.T, path string) []rsVector {
 	return vectors
 }
 
-// ─── A-tier decode with Rust key ────────────────────────────────────────────
+// schemeOf returns the scheme part of a format string ("dsiv.c32" -> "dsiv").
+func schemeOf(format string) string { return strings.Split(format, ".")[0] }
 
-// TestGoldenRsVectorsDecode verifies that Go can decode Rust-generated a/u-tier
-// vectors using the shared hardcoded key — full cross-language interop.
-func TestGoldenRsVectorsDecode(t *testing.T) {
-	vectors := loadRsVectors(t, "testdata/rs-test-vectors.jsonl")
+// isDeterministic reports whether the authenticated scheme is deterministic.
+func isDeterministicScheme(format string) bool {
+	s := schemeOf(format)
+	return s == "dsiv" || s == "dgcmsiv"
+}
+
+// TestGoldenRsVectors verifies Go against the Rust-generated authenticated
+// vectors using the shared hardcoded key. Deterministic schemes (dsiv, dgcmsiv)
+// must reproduce the obtext exactly and decode it; probabilistic schemes (psiv,
+// pgcmsiv) decode the canned obtext and survive a fresh encode/decode round-trip.
+func TestGoldenRsVectors(t *testing.T) {
+	vectors := loadRsVectors(t, "testdata/test-vectors.jsonl")
 	if len(vectors) == 0 {
-		t.Fatal("No test vectors loaded from rs-test-vectors.jsonl")
+		t.Fatal("No test vectors loaded from test-vectors.jsonl")
 	}
-	t.Logf("Loaded %d a-tier test vectors", len(vectors))
+	t.Logf("Loaded %d authenticated test vectors", len(vectors))
 
 	om, err := NewOmnib(rsHardcodedKey)
 	if err != nil {
@@ -85,6 +93,19 @@ func TestGoldenRsVectorsDecode(t *testing.T) {
 
 	for _, v := range vectors {
 		name := fmt.Sprintf("%s/%s", v.Format, truncate(v.Plaintext, 20))
+
+		if isDeterministicScheme(v.Format) {
+			t.Run(name+"/encode", func(t *testing.T) {
+				ot, err := om.Enc(v.Plaintext, v.Format)
+				if err != nil {
+					t.Fatalf("Enc(%q, %q) failed: %v", v.Plaintext, v.Format, err)
+				}
+				if ot != v.Obtext {
+					t.Errorf("Enc mismatch:\n  got:      %q\n  expected: %q", ot, v.Obtext)
+				}
+			})
+		}
+
 		t.Run(name+"/decode", func(t *testing.T) {
 			pt, err := om.Dec(v.Obtext, v.Format)
 			if err != nil {
@@ -94,20 +115,34 @@ func TestGoldenRsVectorsDecode(t *testing.T) {
 				t.Errorf("Dec mismatch:\n  got:      %q\n  expected: %q", pt, v.Plaintext)
 			}
 		})
+
+		if !isDeterministicScheme(v.Format) {
+			t.Run(name+"/roundtrip", func(t *testing.T) {
+				ot, err := om.Enc(v.Plaintext, v.Format)
+				if err != nil {
+					t.Fatalf("Enc(%q, %q) failed: %v", v.Plaintext, v.Format, err)
+				}
+				pt, err := om.Dec(ot, v.Format)
+				if err != nil {
+					t.Fatalf("Dec(%q, %q) failed: %v", ot, v.Format, err)
+				}
+				if pt != v.Plaintext {
+					t.Errorf("Roundtrip mismatch:\n  got:      %q\n  expected: %q", pt, v.Plaintext)
+				}
+			})
+		}
 	}
 }
 
-// ─── Go self-consistency across a/u scheme/encoding combinations ────────────
-
 // TestGoldenFormatRoundtrip verifies Go's own encode/decode round-trip for
-// every a/u scheme × encoding combination.
+// every authenticated scheme × encoding combination.
 func TestGoldenFormatRoundtrip(t *testing.T) {
 	om, err := NewOmnibKeyless()
 	if err != nil {
 		t.Fatalf("NewOmnibKeyless() failed: %v", err)
 	}
 
-	schemes := []Scheme{SchemeAags, SchemeAasv, SchemeApgs, SchemeApsv, SchemeUpbc}
+	schemes := []Scheme{SchemeDgcmsiv, SchemeDsiv, SchemePgcmsiv, SchemePsiv}
 	encodings := []Encoding{EncodingB32, EncodingC32, EncodingB64, EncodingHex}
 	inputs := []string{"a", "hello", "test123", "abcdefghijklmnop", "abcdefghijklmnopqrstuvwxyz"}
 
@@ -142,20 +177,6 @@ func TestGoldenFormatRoundtrip(t *testing.T) {
 						}
 					})
 				}
-
-				t.Run(name+"/autodec", func(t *testing.T) {
-					encoded, err := om.Enc(input, format)
-					if err != nil {
-						t.Fatalf("Enc(%q, %q) failed: %v", input, format, err)
-					}
-					decoded, err := om.Autodec(encoded)
-					if err != nil {
-						t.Fatalf("Autodec(%q) failed for format %s: %v", encoded, format, err)
-					}
-					if decoded != input {
-						t.Errorf("Autodec mismatch:\n  input:   %q\n  encoded: %q\n  decoded: %q", input, encoded, decoded)
-					}
-				})
 			}
 		}
 	}
@@ -164,7 +185,7 @@ func TestGoldenFormatRoundtrip(t *testing.T) {
 // isProbabilistic returns true for schemes where encode output varies per run.
 func isProbabilistic(scheme Scheme) bool {
 	switch scheme {
-	case SchemeApgs, SchemeApsv, SchemeUpbc:
+	case SchemePgcmsiv, SchemePsiv:
 		return true
 	default:
 		return false

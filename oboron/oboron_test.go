@@ -1,70 +1,56 @@
 package oboron
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
-	"os"
-	"strings"
 	"testing"
 )
 
-// localVector is a gentest-produced keyless encode vector (scheme/in/out, b32).
-type localVector struct {
-	Scheme Scheme `json:"scheme"`
-	Key    string `json:"key"`
-	In     string `json:"in"`
-	Out    string `json:"out"`
-}
-
-// TestVectorsFromFile checks keyless b32 encode output for the a/u-tier schemes
-// against the committed vectors. The z-tier (legacy, zrbcx) lines are covered
-// by the ztier package's tests.
-func TestVectorsFromFile(t *testing.T) {
-	file, err := os.Open("test-vectors.jsonl")
-	if err != nil {
-		t.Fatalf("Failed to open test-vectors.jsonl: %v", err)
-	}
-	defer file.Close()
-
-	om, err := NewOmnibKeyless()
-	if err != nil {
-		t.Fatalf("NewOmnibKeyless() failed: %v", err)
+// TestKeylessFixedTypesMatchVectors checks that the keyless fixed-type codecs
+// (DsivB32, DgcmsivB32, …) reproduce the deterministic rev3 vectors exactly.
+// This exercises the fixed-type API path (distinct from the Omnib path covered
+// by TestGoldenRsVectors). The keyless codecs use the shared hardcoded key, the
+// same key the vectors were generated under.
+func TestKeylessFixedTypesMatchVectors(t *testing.T) {
+	vectors := loadRsVectors(t, "testdata/test-vectors.jsonl")
+	if len(vectors) == 0 {
+		t.Fatal("No test vectors loaded")
 	}
 
-	scanner := bufio.NewScanner(file)
-	lineNum, passCount := 0, 0
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
-			continue
+	// Codec constructors for the deterministic .b32 fixed types.
+	type fixed interface {
+		Enc(string) (string, error)
+	}
+	newFixed := func(format string) (fixed, bool) {
+		switch format {
+		case "dsiv.b32":
+			c, _ := NewDsivB32Keyless()
+			return c, true
+		case "dgcmsiv.b32":
+			c, _ := NewDgcmsivB32Keyless()
+			return c, true
+		default:
+			return nil, false
 		}
+	}
 
-		var v localVector
-		if err := json.Unmarshal([]byte(line), &v); err != nil {
-			t.Fatalf("Line %d: Failed to parse JSON: %v", lineNum, err)
+	count := 0
+	for _, v := range vectors {
+		c, ok := newFixed(v.Format)
+		if !ok {
+			continue // only the deterministic .b32 fixed types here
 		}
-		if v.Key != "" {
-			t.Fatalf("Line %d: keyed vectors are not supported by this test", lineNum)
-		}
-		if v.Scheme.IsZTier() {
-			continue // covered by the ztier package
-		}
-
-		t.Run(fmt.Sprintf("line_%d_%s_%s", lineNum, v.Scheme, v.In), func(t *testing.T) {
-			encoded, err := om.Enc(v.In, string(v.Scheme)+".b32")
+		t.Run(v.Format+"/"+truncate(v.Plaintext, 15), func(t *testing.T) {
+			ot, err := c.Enc(v.Plaintext)
 			if err != nil {
-				t.Fatalf("Enc(%q, %q.b32) failed: %v", v.In, v.Scheme, err)
+				t.Fatalf("Enc(%q) failed: %v", v.Plaintext, err)
 			}
-			if encoded != v.Out {
-				t.Errorf("Encoding mismatch:\n  input:    %q\n  got:      %q\n  expected: %q", v.In, encoded, v.Out)
+			if ot != v.Obtext {
+				t.Errorf("Enc mismatch:\n  got:      %q\n  expected: %q", ot, v.Obtext)
 			}
-			passCount++
 		})
+		count++
 	}
-	if err := scanner.Err(); err != nil {
-		t.Fatalf("Error reading test vectors: %v", err)
+	if count == 0 {
+		t.Fatal("no deterministic .b32 vectors exercised")
 	}
-	t.Logf("Passed %d a/u test vectors", passCount)
+	t.Logf("checked %d deterministic fixed-type vectors", count)
 }

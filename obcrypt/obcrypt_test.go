@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var allSchemes = []Scheme{Aasv, Apsv, Aags, Apgs, Upbc}
+var allSchemes = []Scheme{Dsiv, Psiv, Dgcmsiv, Pgcmsiv}
 
 func testKey(t *testing.T) *Key {
 	t.Helper()
@@ -16,8 +16,8 @@ func testKey(t *testing.T) *Key {
 	return k
 }
 
-// TestRoundtrip checks Encrypt → Decrypt and Encrypt → DecryptAs for every
-// scheme over a range of plaintext lengths.
+// TestRoundtrip checks Encrypt → Decrypt for every scheme over a range of
+// plaintext lengths.
 func TestRoundtrip(t *testing.T) {
 	key := testKey(t)
 	inputs := [][]byte{
@@ -36,20 +36,12 @@ func TestRoundtrip(t *testing.T) {
 				t.Fatalf("Encrypt(%s, %q) failed: %v", scheme, in, err)
 			}
 
-			got, err := Decrypt(payload, key)
+			got, err := Decrypt(payload, scheme, key)
 			if err != nil {
 				t.Fatalf("Decrypt(%s, %q) failed: %v", scheme, in, err)
 			}
 			if !bytes.Equal(got, in) {
 				t.Errorf("Decrypt(%s) = %q, want %q", scheme, got, in)
-			}
-
-			gotAs, err := DecryptAs(payload, scheme, key)
-			if err != nil {
-				t.Fatalf("DecryptAs(%s, %q) failed: %v", scheme, in, err)
-			}
-			if !bytes.Equal(gotAs, in) {
-				t.Errorf("DecryptAs(%s) = %q, want %q", scheme, gotAs, in)
 			}
 		}
 	}
@@ -65,11 +57,10 @@ func TestDeterminism(t *testing.T) {
 		scheme        Scheme
 		deterministic bool
 	}{
-		{Aasv, true},
-		{Aags, true},
-		{Apsv, false},
-		{Apgs, false},
-		{Upbc, false},
+		{Dsiv, true},
+		{Dgcmsiv, true},
+		{Psiv, false},
+		{Pgcmsiv, false},
 	} {
 		a, _ := Encrypt(pt, tc.scheme, key)
 		b, _ := Encrypt(pt, tc.scheme, key)
@@ -80,46 +71,27 @@ func TestDeterminism(t *testing.T) {
 	}
 }
 
-// TestDecryptDetectsScheme verifies Decrypt recovers the right scheme from the
-// marker, and DecryptAs rejects a mismatched scheme.
+// TestDecryptWrongScheme verifies Decrypt with the wrong scheme fails the AEAD
+// tag check.
 func TestDecryptWrongScheme(t *testing.T) {
 	key := testKey(t)
-	payload, err := Encrypt([]byte("hello"), Aasv, key)
+	payload, err := Encrypt([]byte("hello"), Dsiv, key)
 	if err != nil {
 		t.Fatalf("Encrypt failed: %v", err)
 	}
-	// DecryptAs with the wrong scheme must fail (marker mismatch).
-	if _, err := DecryptAs(payload, Apsv, key); err != ErrDecryptionFailed {
-		t.Errorf("DecryptAs(wrong scheme) error = %v, want ErrDecryptionFailed", err)
+	if _, err := Decrypt(payload, Psiv, key); err != ErrDecryptionFailed {
+		t.Errorf("Decrypt(wrong scheme) error = %v, want ErrDecryptionFailed", err)
 	}
 }
 
-// TestDecryptUnknownMarker verifies a payload whose marker is not an a/u marker
-// yields ErrUnknownScheme (the signal oboron uses to try z-tier schemes).
-func TestDecryptUnknownMarker(t *testing.T) {
-	key := testKey(t)
-	// A zrbcx-shaped marker {0x06,0x21} is not an obcrypt scheme.
-	body := []byte("0123456789abcdef")
-	payload := make([]byte, len(body)+MarkerSize)
-	copy(payload, body)
-	payload[len(payload)-2] = 0x06 ^ body[0]
-	payload[len(payload)-1] = 0x21 ^ body[0]
-
-	if _, err := Decrypt(payload, key); err != ErrUnknownScheme {
-		t.Errorf("Decrypt(non-a/u marker) error = %v, want ErrUnknownScheme", err)
-	}
-}
-
-// TestUpbcUnauthenticated documents that u-tier upbc is unauthenticated: a
-// flipped ciphertext bit still decrypts (to different bytes) without error,
-// whereas the a-tier schemes reject tampering.
+// TestTamperDetection verifies the authenticated schemes reject tampered input.
 func TestTamperDetection(t *testing.T) {
 	key := testKey(t)
-	for _, scheme := range []Scheme{Aasv, Apsv, Aags, Apgs} {
+	for _, scheme := range []Scheme{Dsiv, Psiv, Dgcmsiv, Pgcmsiv} {
 		payload, _ := Encrypt([]byte("authenticated"), scheme, key)
-		// Flip a bit in the body (before the marker).
+		// Flip a bit in the first byte.
 		payload[0] ^= 0x01
-		if _, err := DecryptAs(payload, scheme, key); err != ErrDecryptionFailed {
+		if _, err := Decrypt(payload, scheme, key); err != ErrDecryptionFailed {
 			t.Errorf("%s: tampered payload error = %v, want ErrDecryptionFailed", scheme, err)
 		}
 	}
@@ -127,7 +99,7 @@ func TestTamperDetection(t *testing.T) {
 
 func TestEmptyPlaintextRejected(t *testing.T) {
 	key := testKey(t)
-	if _, err := Encrypt(nil, Aasv, key); err != ErrEmptyPlaintext {
+	if _, err := Encrypt(nil, Dsiv, key); err != ErrEmptyPlaintext {
 		t.Errorf("Encrypt(empty) error = %v, want ErrEmptyPlaintext", err)
 	}
 }
@@ -167,7 +139,7 @@ func TestZeroize(t *testing.T) {
 	if key.Hex() != "" {
 		t.Error("Hex() should be empty after Zeroize()")
 	}
-	if _, err := Encrypt([]byte("x"), Aasv, key); err != ErrKeyZeroized {
+	if _, err := Encrypt([]byte("x"), Dsiv, key); err != ErrKeyZeroized {
 		t.Errorf("Encrypt with zeroized key error = %v, want ErrKeyZeroized", err)
 	}
 }

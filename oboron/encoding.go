@@ -1,7 +1,5 @@
 package oboron
 
-import "strings"
-
 // Encoding represents a text encoding for oboron output.
 type Encoding string
 
@@ -17,9 +15,9 @@ const (
 )
 
 // There is deliberately no library-level default encoding. The c32 default is
-// a CLI concept (spec CLI.md §3), applied in cmd/ob and cmd/obz, not in the
-// format layer — ParseFormat requires an explicit encoding suffix (the bare
-// "legacy" aside). This mirrors Rust, where Format::from_str("aasv") errors.
+// a CLI concept (spec CLI.md §3), applied in cmd/ob and cmd/obu, not in the
+// format layer — ParseFormat requires an explicit encoding suffix. This mirrors
+// Rust, where Format::from_str("dsiv") errors.
 
 func (e Encoding) String() string {
 	return string(e)
@@ -41,17 +39,19 @@ func (e Encoding) LongName() string {
 	}
 }
 
-// ParseEncoding parses an encoding string (case-insensitive).
-// Accepts both short ("b32") and long ("base32rfc") forms.
+// ParseEncoding parses an encoding string. The encoding set is closed and the
+// codes are lowercase ASCII and case-sensitive (spec §1.2): only the four
+// canonical codes "b32", "c32", "b64", "hex" are accepted, so a format like
+// "dsiv.base32" is rejected as outside the closed set.
 func ParseEncoding(s string) (Encoding, error) {
-	switch strings.ToLower(s) {
-	case "b32", "base32rfc", "base32":
+	switch s {
+	case "b32":
 		return EncodingB32, nil
-	case "c32", "base32crockford", "crockford":
+	case "c32":
 		return EncodingC32, nil
-	case "b64", "base64", "base64url":
+	case "b64":
 		return EncodingB64, nil
-	case "hex", "hexadecimal":
+	case "hex":
 		return EncodingHex, nil
 	default:
 		return "", ErrUnknownEncoding

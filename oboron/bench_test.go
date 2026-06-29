@@ -2,7 +2,7 @@ package oboron
 
 import "testing"
 
-var benchSchemes = []Scheme{SchemeAags, SchemeAasv, SchemeApgs, SchemeApsv, SchemeUpbc}
+var benchSchemes = []Scheme{SchemeDgcmsiv, SchemeDsiv, SchemePgcmsiv, SchemePsiv}
 
 func BenchmarkEnc(b *testing.B) {
 	om, _ := NewOmnibKeyless()
@@ -26,20 +26,6 @@ func BenchmarkDec(b *testing.B) {
 		b.Run(string(scheme), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				if _, err := om.Dec(ot, format); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
-}
-
-func BenchmarkAutodec(b *testing.B) {
-	om, _ := NewOmnibKeyless()
-	for _, scheme := range benchSchemes {
-		ot, _ := om.Enc("hello, world", string(scheme)+".c32")
-		b.Run(string(scheme), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				if _, err := om.Autodec(ot); err != nil {
 					b.Fatal(err)
 				}
 			}

@@ -50,7 +50,7 @@ func schemeOf(format string) string { return strings.Split(format, ".")[0] }
 
 func isDeterministic(format string) bool {
 	s := schemeOf(format)
-	return s == "aasv" || s == "aags"
+	return s == "dsiv" || s == "dgcmsiv"
 }
 
 func loadHexVectors(t *testing.T, path string) []testVector {
@@ -94,7 +94,7 @@ func loadHexVectors(t *testing.T, path string) []testVector {
 // survive a fresh encrypt→decrypt round-trip.
 func TestObcryptVectors(t *testing.T) {
 	binary := obcryptBinary(t)
-	vectors := loadHexVectors(t, "../../oboron/testdata/rs-test-vectors.jsonl")
+	vectors := loadHexVectors(t, "../../oboron/testdata/test-vectors.jsonl")
 	if len(vectors) == 0 {
 		t.Fatal("no .hex test vectors loaded")
 	}
@@ -149,21 +149,16 @@ func TestObcryptVectors(t *testing.T) {
 	}
 }
 
-// TestObcryptAutodetect verifies decrypt without -s recovers the scheme from
-// the marker (mirrors obcrypt.Decrypt).
-func TestObcryptAutodetect(t *testing.T) {
+// TestObcryptRequiresScheme verifies decrypt without -s is an error (there is
+// no marker and no auto-detection).
+func TestObcryptRequiresScheme(t *testing.T) {
 	binary := obcryptBinary(t)
-	for _, scheme := range []string{"aasv", "apsv", "aags", "apgs", "upbc"} {
-		t.Run(scheme, func(t *testing.T) {
-			ct, ok := runObcrypt(t, binary, "encrypt", "-s", scheme, "-x", "-k", hardcodedKeyHex, "--", "hello world")
-			if !ok {
-				t.Fatalf("encrypt failed")
-			}
-			pt, ok := runObcrypt(t, binary, "decrypt", "-X", "-k", hardcodedKeyHex, "--", ct)
-			if !ok || pt != "hello world" {
-				t.Errorf("autodetect decrypt = %q (ok=%v), want %q", pt, ok, "hello world")
-			}
-		})
+	ct, ok := runObcrypt(t, binary, "encrypt", "-s", "dsiv", "-x", "-k", hardcodedKeyHex, "--", "hello world")
+	if !ok {
+		t.Fatalf("encrypt failed")
+	}
+	if _, ok := runObcrypt(t, binary, "decrypt", "-X", "-k", hardcodedKeyHex, "--", ct); ok {
+		t.Error("decrypt without --scheme should fail")
 	}
 }
 

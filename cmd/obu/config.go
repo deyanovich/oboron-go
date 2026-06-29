@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"oboron.org/go/oboron/ztier"
+	"oboron.org/go/obu"
 )
 
-// Config represents the main configuration file for the obz CLI.
+// Config represents the main configuration file for the obu CLI.
 type Config struct {
 	Profile  string `json:"profile"`
 	Scheme   string `json:"scheme"`
@@ -23,21 +23,22 @@ type SecretProfile struct {
 	Secret string `json:"secret"`
 }
 
-func obzDir() string {
+func obuDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		panic(err)
 	}
-	// obz shares the ~/.oboron/ root with ob, under the ztier/ subdir (CLI §3).
-	return filepath.Join(home, ".oboron", "ztier")
+	// obu uses its own ~/.obu/ config root (matching the obu-rs CLI),
+	// keeping the unauthenticated layer's config separate from ob's.
+	return filepath.Join(home, ".obu")
 }
 
 func configPath() string {
-	return filepath.Join(obzDir(), "config.json")
+	return filepath.Join(obuDir(), "config.json")
 }
 
 func profileDir() string {
-	return filepath.Join(obzDir(), "profiles")
+	return filepath.Join(obuDir(), "profiles")
 }
 
 // validateProfileName checks that a profile name is a safe filename with no path separators.
@@ -58,7 +59,7 @@ func profilePath(name string) string {
 }
 
 func backupDir() string {
-	return filepath.Join(obzDir(), "bkp")
+	return filepath.Join(obuDir(), "bkp")
 }
 
 func loadConfig() (*Config, error) {
@@ -73,7 +74,7 @@ func loadConfig() (*Config, error) {
 	}
 
 	if cfg.Scheme == "" {
-		cfg.Scheme = "zrbcx"
+		cfg.Scheme = "upcbc"
 	}
 	if cfg.Profile == "" {
 		cfg.Profile = "default"
@@ -102,7 +103,7 @@ func loadProfile(name string) (*SecretProfile, error) {
 	}
 	data, err := os.ReadFile(profilePath(name))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read secret profile %q: %w\nHint: run 'obz init' or 'obz profile create %s'", name, err, name)
+		return nil, fmt.Errorf("failed to read secret profile %q: %w\nHint: run 'obu init' or 'obu profile create %s'", name, err, name)
 	}
 
 	var p SecretProfile
@@ -143,19 +144,19 @@ func saveProfile(name string, p *SecretProfile) error {
 	return os.WriteFile(path, data, 0600)
 }
 
-func generateSecret() (*ztier.Secret, error) {
-	raw := make([]byte, ztier.SecretSize)
+func generateSecret() (*obu.Secret, error) {
+	raw := make([]byte, obu.SecretSize)
 	if _, err := rand.Read(raw); err != nil {
 		return nil, err
 	}
-	return ztier.NewSecret(raw)
+	return obu.NewSecret(raw)
 }
 
 func listProfiles() error {
 	entries, err := os.ReadDir(profileDir())
 	if err != nil {
 		if os.IsNotExist(err) {
-			fmt.Println("No profiles found. Run 'obz init' to create one.")
+			fmt.Println("No profiles found. Run 'obu init' to create one.")
 			return nil
 		}
 		return err
@@ -190,7 +191,7 @@ func listProfiles() error {
 	return nil
 }
 
-func createProfile(name string, secret *ztier.Secret) error {
+func createProfile(name string, secret *obu.Secret) error {
 	p := &SecretProfile{Secret: secret.Hex()}
 	if err := saveProfile(name, p); err != nil {
 		return err

@@ -2,22 +2,21 @@ package oboron
 
 //go:generate go run ../scripts/gen-codecs
 
-// Ob is the a/u-tier runtime-format codec: one instance carries a single
+// Ob is the authenticated runtime-format codec: one instance carries a single
 // format (scheme + encoding), chosen at construction and changeable via the
-// setters. It is the Go analog of Rust's `Ob`. The z-tier (zrbcx, legacy)
-// lives in the isolated oboron/ztier subpackage and is not reachable here.
+// setters. It is the Go analog of Rust's `Ob`. The obu schemes (upcbc, zdcbc)
+// live in the separate obu package and are not reachable here.
 //
-// For a format that never changes, prefer a fixed type (AasvC32, …); for a
+// For a format that never changes, prefer a fixed type (DsivC32, …); for a
 // format chosen per operation, use Omnib.
 type Ob struct {
 	codec  *codec
 	format Format
 }
 
-// New creates an Ob for an a/u-tier format ("aasv.c32", "aags.b64", …) from a
-// key string. The key encoding is auto-detected by length (spec §3.4): 128 hex
-// chars (canonical) or 86 base64url chars (deprecated). z-tier formats (zrbcx,
-// legacy) are rejected with ErrInvalidFormat — use oboron/ztier.
+// New creates an Ob for an authenticated format ("dsiv.c32", "dgcmsiv.b64", …)
+// from a key string. The key is 128 hex chars (spec §3.2). The obu formats
+// (upcbc, zdcbc) are rejected with ErrInvalidFormat — use the obu package.
 func New(format string, key string) (*Ob, error) {
 	f, err := parseAUFormat(format)
 	if err != nil {
@@ -52,13 +51,13 @@ func newOb(f Format, key []byte) (*Ob, error) {
 	return &Ob{codec: cd, format: f}, nil
 }
 
-// parseAUFormat parses format and requires it to be an a/u-tier format.
+// parseAUFormat parses format and requires it to be an authenticated format.
 func parseAUFormat(format string) (Format, error) {
 	f, err := ParseFormat(format)
 	if err != nil {
 		return Format{}, err
 	}
-	if f.scheme.IsZTier() {
+	if f.scheme.IsObu() {
 		return Format{}, ErrInvalidFormat
 	}
 	return f, nil
@@ -70,19 +69,10 @@ func (ob *Ob) Enc(plaintext string) (string, error) {
 	return ob.codec.encodeScheme(plaintext, ob.format.scheme, ob.format.encoding)
 }
 
-// Dec decodes and decrypts obtext using the configured format (strict — no
-// scheme autodetection; use Autodec for that).
+// Dec decodes and decrypts obtext using the configured format. obtext carries
+// no scheme marker, so the format must match the one used to encode.
 func (ob *Ob) Dec(obtext string) (string, error) {
 	return ob.codec.decodeScheme(obtext, ob.format.scheme, ob.format.encoding)
-}
-
-// Autodec decodes obtext, auto-detecting the a/u scheme. It tries the
-// configured encoding first (fast path), then every other encoding.
-func (ob *Ob) Autodec(obtext string) (string, error) {
-	if result, err := ob.codec.decodeAutodetectWith(obtext, ob.format.encoding); err == nil {
-		return result, nil
-	}
-	return ob.codec.decodeAutodetectAnyEncoding(obtext)
 }
 
 // Format returns the configured format (scheme + encoding).
@@ -104,10 +94,10 @@ func (ob *Ob) SetFormat(format string) error {
 	return nil
 }
 
-// SetScheme changes the scheme (keeping the current encoding). z-tier schemes
+// SetScheme changes the scheme (keeping the current encoding). obu schemes
 // are rejected.
 func (ob *Ob) SetScheme(scheme Scheme) error {
-	if scheme.IsZTier() {
+	if scheme.IsObu() {
 		return ErrInvalidFormat
 	}
 	if _, ok := obcryptScheme(scheme); !ok {

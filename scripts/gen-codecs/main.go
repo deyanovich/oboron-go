@@ -1,13 +1,14 @@
 // Command gen-codecs generates the fixed-type codec families — the Go analog
-// of Rust's impl_codec_* / impl_zcodec! macros. Each fixed type bakes a
+// of Rust's impl_codec_* / impl_obu! macros. Each fixed type bakes a
 // scheme+encoding into its name so no encoding default can ever apply, and
-// wraps the matching flexible codec (*oboron.Ob or *ztier.Obz) by composition
+// wraps the matching flexible codec (*oboron.Ob or *obu.Obu) by composition
 // (not embedding) so only the Codec methods are exposed — never the setters,
 // which would defeat the "encoding baked in" guarantee.
 //
-// Run via `go generate ./oboron/...`; the single //go:generate directive in
-// oboron/ob.go invokes this with cwd = oboron/, so it writes both output
-// files. Keep the committed output in sync (CI diffs it).
+// Run via `go generate ./...`; the single //go:generate directive in
+// oboron/ob.go invokes this with cwd = oboron/, so it writes the authenticated
+// output here and the obu output to ../obu/. Keep the committed output in sync
+// (CI diffs it).
 package main
 
 import (
@@ -18,8 +19,8 @@ import (
 )
 
 type fixedType struct {
-	Name   string // Go type name, e.g. "AasvC32"
-	Format string // baked format string, e.g. "aasv.c32"
+	Name   string // Go type name, e.g. "DsivC32"
+	Format string // baked format string, e.g. "dsiv.c32"
 }
 
 type encoding struct{ suffix, code string }
@@ -31,13 +32,18 @@ var encodings = []encoding{
 	{"Hex", "hex"},
 }
 
-// a/u-tier schemes, in oboron-rs codec.rs order.
+// authenticated schemes, in oboron-rs codec.rs order.
 var auSchemes = []struct{ title, code string }{
-	{"Aags", "aags"},
-	{"Aasv", "aasv"},
-	{"Apgs", "apgs"},
-	{"Apsv", "apsv"},
-	{"Upbc", "upbc"},
+	{"Dgcmsiv", "dgcmsiv"},
+	{"Dsiv", "dsiv"},
+	{"Pgcmsiv", "pgcmsiv"},
+	{"Psiv", "psiv"},
+}
+
+// obu schemes, in oboron-rs order.
+var obuSchemes = []struct{ title, code string }{
+	{"Upcbc", "upcbc"},
+	{"Zdcbc", "zdcbc"},
 }
 
 func main() {
@@ -49,25 +55,25 @@ func main() {
 	}
 
 	var z []fixedType
-	for _, e := range encodings {
-		z = append(z, fixedType{Name: "Zrbcx" + e.suffix, Format: "zrbcx." + e.code})
+	for _, s := range obuSchemes {
+		for _, e := range encodings {
+			z = append(z, fixedType{Name: s.title + e.suffix, Format: s.code + "." + e.code})
+		}
 	}
-	// Legacy is a single fixed form with no encoding suffix.
-	z = append(z, fixedType{Name: "Legacy", Format: "legacy"})
 
 	writeFormatted("codec_fixed_gen.go", renderAU(au))
-	writeFormatted("ztier/codec_fixed_gen.go", renderZ(z))
+	writeFormatted("../obu/codec_fixed_gen.go", renderObu(z))
 }
 
 // tierConfig parameterizes the two near-identical renderers.
 type tierConfig struct {
 	pkg        string // package clause
 	imports    string // import block (may be empty)
-	field      string // wrapper field name: "ob" / "obz"
-	wrapType   string // wrapped flexible type: "Ob" / "Obz"
-	newFn      string // flexible string ctor: "New" / "NewObz"
-	newBytesFn string // flexible bytes ctor: "NewObFromBytes" / "NewObzFromBytes"
-	keylessFn  string // flexible keyless ctor: "NewObKeyless" / "NewObzKeyless"
+	field      string // wrapper field name: "ob" / "obu"
+	wrapType   string // wrapped flexible type: "Ob" / "Obu"
+	newFn      string // flexible string ctor: "New" / "NewObu"
+	newBytesFn string // flexible bytes ctor: "NewObFromBytes" / "NewObuFromBytes"
+	keylessFn  string // flexible keyless ctor: "NewObKeyless" / "NewObuKeyless"
 	material   string // "key" / "secret" (param name)
 	qual       string // return-type qualifier: "" / "oboron."
 }
@@ -86,15 +92,15 @@ func renderAU(types []fixedType) string {
 	}, types)
 }
 
-func renderZ(types []fixedType) string {
+func renderObu(types []fixedType) string {
 	return render(tierConfig{
-		pkg:        "package ztier",
+		pkg:        "package obu",
 		imports:    "import \"oboron.org/go/oboron\"\n",
-		field:      "obz",
-		wrapType:   "Obz",
-		newFn:      "NewObz",
-		newBytesFn: "NewObzFromBytes",
-		keylessFn:  "NewObzKeyless",
+		field:      "obu",
+		wrapType:   "Obu",
+		newFn:      "NewObu",
+		newBytesFn: "NewObuFromBytes",
+		keylessFn:  "NewObuKeyless",
 		material:   "secret",
 		qual:       "oboron.",
 	}, types)
